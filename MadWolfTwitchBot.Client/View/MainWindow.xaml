@@ -1,0 +1,108 @@
+﻿<Window x:Class="MadWolfTwitchBot.Client.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MadWolfTwitchBot.Client.ViewModel"
+        xmlns:model="clr-namespace:MadWolfTwitchBot.Client.Model"
+        mc:Ignorable="d"
+        Title="{Binding Title}" Height="450" Width="800">
+    <Window.DataContext>
+        <local:MainWindowViewModel />
+    </Window.DataContext>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="150" />
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="45" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <GroupBox Header="Bot Details" IsEnabled="{Binding IsDisconnected}">
+            <Grid HorizontalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="125" />
+
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="125" />
+
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="100" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Username" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" Text="{Binding BotName}" />
+
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Channel" />
+                <TextBox Grid.Column="3" Text="{Binding TwitchChannel}" />
+
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Token Status: " VerticalAlignment="Center" />
+                </StackPanel>
+                <Button Grid.Column="5" Content="Get Access Token" />
+            </Grid>
+        </GroupBox>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+            <Button Margin="0 1" Content="Connect" Command="{Binding ConnectCommand}" />
+            <Button Margin="0 1" Content="Disconnect" Command="{Binding DisconnectCommand}" />
+        </StackPanel>
+
+        <GroupBox Grid.Row="1" Header="Bot Commands">
+            <ListView ItemsSource="{Binding ChatCommands}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Command" Width="Auto">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Width="75" HorizontalAlignment="Center" Text="{Binding Command}" />
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+
+                        <GridViewColumn Header="Message" Width="Auto">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBox Width="425" AcceptsReturn="True" TextWrapping="Wrap" Text="{Binding Message}" />
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </GroupBox>
+        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+            <Button Margin="0 0.5 1.5 0.5" Width="25" Content="+" Command="{Binding AddCommand}" />
+            <Button Margin="1.5 0.5 0 0.5" Width="25" Content="-" />
+        </StackPanel>
+
+        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Chat Log">
+            <ListView FontFamily="Consolas" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Messages}">
+                <ListView.ItemTemplate>
+                    <DataTemplate DataType="{x:Type model:MessageModel}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <TextBlock TextAlignment="Right"
+                                       Text="{Binding DisplayName}"
+                                       Foreground="{Binding HexColour}"
+                                       FontWeight="Bold"
+                                       Margin="3 0"/>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding Message}"
+                                       TextWrapping="Wrap" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </GroupBox>
+    </Grid>
+</Window>
