@@ -4,7 +4,7 @@ using System.Text;
 
 namespace MadWolfTwitchBot.Client.Model
 {
-    public class MessageModel
+    public class ChatMessage
     {
         private string _name;
         public string DisplayName

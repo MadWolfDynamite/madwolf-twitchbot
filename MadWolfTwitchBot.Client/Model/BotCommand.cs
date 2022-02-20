@@ -4,17 +4,17 @@ using System.Text;
 
 namespace MadWolfTwitchBot.Client.Model
 {
-    public class BotCommandModel
+    public class BotCommand
     {
         public string Command { get; set; }
         public string Message { get; set; }
 
         public override bool Equals(object obj)
         {
-            if (obj == null || !(obj is BotCommandModel))
+            if (obj == null || !(obj is BotCommand))
                 return false;
 
-            var command = obj as BotCommandModel;
+            var command = obj as BotCommand;
 
             if (command.Command == null && command.Message == null)
                 return command.Command == Command && command.Message == Message;

@@ -6,7 +6,7 @@ using System.Linq;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 
-namespace MadWolfTwitchBot.Api
+namespace MadWolfTwitchBot.BotCommands
 {
     public static class BotCommandService
     {
@@ -28,7 +28,7 @@ namespace MadWolfTwitchBot.Api
         public static string GetConnectionMessage()
         {
             var rng = new Random();
-            var messagePool = new string[] { "Activates Fists of Fire", "Meditates to Open Chakra", "Performs Form Shift" };
+            var messagePool = new string[] { "Thuderclaps her way in", "Meditates to Open Chakra", "Performs Form Shift" };
 
             var index = rng.Next(0, messagePool.Length);
             return messagePool[index];

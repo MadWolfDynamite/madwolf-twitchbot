@@ -1,6 +1,6 @@
-﻿using GalaSoft.MvvmLight;
-using GalaSoft.MvvmLight.CommandWpf;
-using MadWolfTwitchBot.Api;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using MadWolfTwitchBot.BotCommands;
 using MadWolfTwitchBot.Client.Model;
 using System;
 using System.Collections.Generic;
@@ -18,10 +18,10 @@ using TwitchLib.Communication.Models;
 
 namespace MadWolfTwitchBot.Client.ViewModel
 {
-    public class MainWindowViewModel : ViewModelBase
+    public class MainWindowViewModel : ObservableObject
     {
         private TwitchClient _client;
-        private readonly BotConfigModel _config = new BotConfigModel();
+        private readonly BotConfiguration _config = new BotConfiguration();
 
         private readonly SynchronizationContext _uiContext;
 
@@ -29,28 +29,14 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public string Title
         {
             get => _windowTitle;
-            set
-            {
-                if (_windowTitle != value)
-                {
-                    _windowTitle = value;
-                    RaisePropertyChanged("Title");
-                }
-            }
+            set => SetProperty(ref _windowTitle, value);
         }
 
-        private bool _connected = true;
+        private bool _disconnected = true;
         public bool IsDisconnected 
         {
-            get => _connected;
-            set
-            {
-                if (_connected != value)
-                {
-                    _connected = value;
-                    RaisePropertyChanged("IsConnected");
-                }
-            }
+            get => _disconnected;
+            set => SetProperty(ref _disconnected, value);
         }
 
         public string BotName
@@ -58,11 +44,10 @@ namespace MadWolfTwitchBot.Client.ViewModel
             get => _config.UserName;
             set
             {
-                if (_config.UserName != value)
-                {
-                    _config.UserName = value;
-                    RaisePropertyChanged("BotName");
-                }
+                var oldValue = _config.UserName;
+                SetProperty(ref oldValue, value);
+
+                _config.UserName = oldValue;
             }
         }
 
@@ -71,18 +56,17 @@ namespace MadWolfTwitchBot.Client.ViewModel
             get => _config.Channel;
             set
             {
-                if (_config.Channel != value)
-                {
-                    _config.Channel = value;
-                    RaisePropertyChanged("TwitchChannel");
-                }
+                var oldValue = _config.Channel;
+                SetProperty(ref oldValue, value);
+
+                _config.Channel = oldValue;
             }
         }
 
         private readonly Dictionary<string, string> _commands;
-        public ObservableCollection<BotCommandModel> ChatCommands { get; set; } = new ObservableCollection<BotCommandModel>();
+        public ObservableCollection<BotCommand> ChatCommands { get; set; } = new ObservableCollection<BotCommand>();
 
-        public ObservableCollection<MessageModel> Messages { get; set; } = new ObservableCollection<MessageModel>();
+        public ObservableCollection<Model.ChatMessage> Messages { get; set; } = new ObservableCollection<Model.ChatMessage>();
 
         public ICommand ConnectCommand { get; private set; }
         public ICommand DisconnectCommand { get; private set; }
@@ -92,10 +76,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public MainWindowViewModel()
         {
-            if (IsInDesignMode)
-                Title = "MadWolf Twitch Bot Client (Design Mode)";
-            else
-                Title = "MadWolf Twitch Bot Client";
+          
+            Title = "MadWolf Twitch Bot Client";
 
             _config.SetConfig("D:/TestConfig.json");
             _uiContext = SynchronizationContext.Current;
@@ -103,7 +85,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             _commands = BotCommandService.LoadCommands("D:/Commands.json");
             foreach (var command in _commands)
             {
-                var data = new BotCommandModel
+                var data = new BotCommand
                 {
                     Command = command.Key,
                     Message = command.Value
@@ -113,6 +95,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
 
             ConnectCommand = new RelayCommand(Connect, CanConnect);
+            DisconnectCommand = new RelayCommand(Disconnect, CanDisconnect);
 
             AddCommand = new RelayCommand(AddChatCommand, CanAddChatCommand);
 
@@ -125,6 +108,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         private void Connect()
         {
+            var msg = new Model.ChatMessage
+            {
+                Message = $"Connecting to {TwitchChannel}...",
+                HexColour = "#FF000000"
+            };
+            Messages.Add(msg);
+
             ConnectionCredentials credentials = new ConnectionCredentials(_config.UserName, _config.Token);
             var clientOptions = new ClientOptions
             {
@@ -141,27 +131,52 @@ namespace MadWolfTwitchBot.Client.ViewModel
             _client.OnJoinedChannel += OnChannelJoined;
             _client.OnMessageReceived += OnReceivedMessage;
 
-            _client.Connect();
+            if (!_client.Connect())
+                System.Windows.MessageBox.Show("Connection Failed");
+        }
+
+        private bool CanDisconnect()
+        {
+            return !IsDisconnected;
+        }
+        private void Disconnect()
+        {
+            _client.Disconnect();
         }
 
         private void OnBotConnected(object sender, OnConnectedArgs e)
         {
             Title = $"[CONNECTED] {Title}";
             IsDisconnected = false;
+
+            var msg = new Model.ChatMessage
+            {
+                Message = "Connected!",
+                HexColour = "#FF000000"
+            };
+            _uiContext.Send(x => Messages.Add(msg), null);
         }
         private void OnBotDisconnected(object sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
         {
             Title = Title.Replace("[CONNECTED] ", "");
+            IsDisconnected = true;
+
+            var msg = new Model.ChatMessage
+            {
+                Message = $"Disconnected from {TwitchChannel}",
+                HexColour = "#FF000000"
+            };
+            _uiContext.Send(x => Messages.Add(msg), null);
         }
 
         private void OnChannelJoined(object sender, OnJoinedChannelArgs e)
         {
-            _client.SendMessage(e.Channel, BotCommandService.GetConnectionMessage());
+            _client.SendMessage(e.Channel, "/me " + BotCommandService.GetConnectionMessage());
         }
 
         private void OnReceivedMessage(object sender, OnMessageReceivedArgs e) 
         {
-            var msg = new MessageModel
+            var msg = new Model.ChatMessage
             {
                 DisplayName = e.ChatMessage.DisplayName,
                 Message = e.ChatMessage.Message,
@@ -189,7 +204,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             switch (parsedMessage)
             {
                 case "!heaven":
-                    _client.SendMessage(_client.JoinedChannels.FirstOrDefault(), "Uses Final Heaven");
+                    _client.SendMessage(_client.JoinedChannels.FirstOrDefault(), "/me Uses Final Heaven");
                     Thread.Sleep(4200);
                     _client.SendMessage(_client.JoinedChannels.FirstOrDefault(), $"Critical direct hit! {msg.DisplayName} takes 731858 damage.");
                     break;
@@ -198,7 +213,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 case "!hello":
                 case "!hi":
                 case "!yo":
-                    _client.SendReply(_client.JoinedChannels.FirstOrDefault(), e.ChatMessage.Id, $"Nods at {msg.DisplayName}");
+                    _client.SendReply(_client.JoinedChannels.FirstOrDefault(), e.ChatMessage.Id, $"/me Nods at {msg.DisplayName}");
                     break;
                 case "!o/":
                     _client.SendReply(_client.JoinedChannels.FirstOrDefault(), e.ChatMessage.Id, @"\o");
@@ -215,7 +230,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         private void AddChatCommand()
         {
-            ChatCommands.Add(new BotCommandModel());
+            ChatCommands.Add(new BotCommand());
         }
     }
 }

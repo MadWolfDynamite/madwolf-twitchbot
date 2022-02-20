@@ -7,14 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MvvmLightLibs" Version="5.4.1.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="7.1.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="TwitchLib" Version="3.2.0" />
-    <PackageReference Include="TwitchLib.Client" Version="3.2.2" />
+    <PackageReference Include="TwitchLib" Version="3.3.0" />
+    <PackageReference Include="TwitchLib.Client" Version="3.2.4" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MadWolfTwitchBot.Api\MadWolfTwitchBot.Api.csproj" />
+    <ProjectReference Include="..\MadWolfTwitchBot.Api\MadWolfTwitchBot.BotCommands.csproj" />
   </ItemGroup>
 
   <ItemGroup>

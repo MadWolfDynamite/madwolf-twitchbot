@@ -60,7 +60,9 @@
                         <GridViewColumn Header="Command" Width="Auto">
                             <GridViewColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBox Width="75" HorizontalAlignment="Center" Text="{Binding Command}" />
+                                    <TextBox Width="75" 
+                                             HorizontalAlignment="Center" 
+                                             Text="{Binding Command}" />
                                 </DataTemplate>
                             </GridViewColumn.CellTemplate>
                         </GridViewColumn>
@@ -78,13 +80,13 @@
         </GroupBox>
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
             <Button Margin="0 0.5 1.5 0.5" Width="25" Content="+" Command="{Binding AddCommand}" />
-            <Button Margin="1.5 0.5 0 0.5" Width="25" Content="-" />
+            <Button Margin="1.5 0.5 0 0.5" Width="25" Content="-" Command="{Binding RemoveCommand}" />
         </StackPanel>
 
         <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Chat Log">
             <ListView FontFamily="Consolas" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Messages}">
                 <ListView.ItemTemplate>
-                    <DataTemplate DataType="{x:Type model:MessageModel}">
+                    <DataTemplate DataType="{x:Type model:ChatMessage}">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />

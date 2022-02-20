@@ -24,12 +24,5 @@ namespace MadWolfTwitchBot.Client
         {
             InitializeComponent();
         }
-
-        private void OnPasswordChanged(object sender, RoutedEventArgs e)
-        {
-            var pBox = sender as PasswordBox;
-
-            ViewModel.PasswordBoxProperties.SetEncryptedPassword(pBox, pBox.SecurePassword);
-        }
     }
 }

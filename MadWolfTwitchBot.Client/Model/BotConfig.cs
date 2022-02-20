@@ -6,7 +6,7 @@ using System.Text;
 
 namespace MadWolfTwitchBot.Client.Model
 {
-    public class BotConfigModel
+    public class BotConfiguration
     {
         private string _name;
         public string UserName
@@ -32,7 +32,7 @@ namespace MadWolfTwitchBot.Client.Model
         public void SetConfig(string path)
         {
             string json = File.ReadAllText(path);
-            var loadedData = JsonConvert.DeserializeObject<BotConfigModel>(json);
+            var loadedData = JsonConvert.DeserializeObject<BotConfiguration>(json);
 
             _name = loadedData.UserName;
             _token = loadedData.Token;
