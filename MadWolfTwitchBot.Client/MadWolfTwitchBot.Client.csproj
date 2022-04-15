@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="icons\StatusOK_16x.png" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="7.1.2" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="TwitchLib" Version="3.3.0" />
@@ -15,16 +19,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MadWolfTwitchBot.Api\MadWolfTwitchBot.BotCommands.csproj" />
+    <ProjectReference Include="..\MadWolfTwitchBot.Services\MadWolfTwitchBot.Services.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="icons\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="icons\StatusOK_16x.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <Resource Include="icons\StatusOK_16x.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 
 </Project>

@@ -7,6 +7,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MadWolfTwitchBot.Client", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MadWolfTwitchBot.BotCommands", "MadWolfTwitchBot.Api\MadWolfTwitchBot.BotCommands.csproj", "{60B5D04D-D02F-42FA-BD68-3B4F7CCCC437}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadWolfTwitchBot.Services", "MadWolfTwitchBot.Services\MadWolfTwitchBot.Services.csproj", "{312D0E80-9806-46E1-89F4-A7834B25C2FA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadWolfTwitchBot.Models", "MadWolfTwitchBot.Models\MadWolfTwitchBot.Models.csproj", "{129D6E6C-8432-4DE0-9B9A-3D62B6695C42}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadWolfTwitchBot.Domain", "MadWolfTwitchBot.Domain\MadWolfTwitchBot.Domain.csproj", "{844B3037-09A9-46F5-8232-806EBED75C34}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MadWolfTools.Common.AttributeExtension", "..\CommonTools\MadWolfTools.Common.AttributeExtension\MadWolfTools.Common.AttributeExtension.csproj", "{7F529114-FFD7-4582-80BD-DF790D0A61B4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +29,22 @@ Global
 		{60B5D04D-D02F-42FA-BD68-3B4F7CCCC437}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{60B5D04D-D02F-42FA-BD68-3B4F7CCCC437}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{60B5D04D-D02F-42FA-BD68-3B4F7CCCC437}.Release|Any CPU.Build.0 = Release|Any CPU
+		{312D0E80-9806-46E1-89F4-A7834B25C2FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{312D0E80-9806-46E1-89F4-A7834B25C2FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{312D0E80-9806-46E1-89F4-A7834B25C2FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{312D0E80-9806-46E1-89F4-A7834B25C2FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{129D6E6C-8432-4DE0-9B9A-3D62B6695C42}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{129D6E6C-8432-4DE0-9B9A-3D62B6695C42}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{129D6E6C-8432-4DE0-9B9A-3D62B6695C42}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{129D6E6C-8432-4DE0-9B9A-3D62B6695C42}.Release|Any CPU.Build.0 = Release|Any CPU
+		{844B3037-09A9-46F5-8232-806EBED75C34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{844B3037-09A9-46F5-8232-806EBED75C34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{844B3037-09A9-46F5-8232-806EBED75C34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{844B3037-09A9-46F5-8232-806EBED75C34}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7F529114-FFD7-4582-80BD-DF790D0A61B4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7F529114-FFD7-4582-80BD-DF790D0A61B4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7F529114-FFD7-4582-80BD-DF790D0A61B4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7F529114-FFD7-4582-80BD-DF790D0A61B4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

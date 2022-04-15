@@ -11,6 +11,10 @@
         <local:MainWindowViewModel />
     </Window.DataContext>
 
+    <Window.Resources>
+        <local:TokenStatusToUriConverter x:Key="TokenStatusConverter" />
+    </Window.Resources>
+
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -27,23 +31,48 @@
             <Grid HorizontalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="125" />
+                    <ColumnDefinition Width="*" />
 
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="125" />
+                    <ColumnDefinition Width="*" />
 
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="100" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Text="Username" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1" Text="{Binding BotName}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <ComboBox MinWidth="125" ItemsSource="{Binding ConfiguredBots}" SelectedItem="{Binding SelectedBot}" >
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type model:BasicBot}">
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
+                    <Button Content="Add" />
+                    <Button Content="Edit" Command="{Binding EditBotCommand}" />
+                    <Button Content="Remove" />
+                </StackPanel>
+                
                 <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Channel" />
-                <TextBox Grid.Column="3" Text="{Binding TwitchChannel}" />
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <ComboBox MinWidth="125" IsEditable="True" ItemsSource="{Binding TwitchChannels}" SelectedItem="{Binding SelectedChannel}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type model:BasicChannel}">
+                                <TextBlock Text="{Binding DisplayName}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+
+                    <Button Content="Verify" />
+                    <Button Content="Edit" />
+                    <Button Content="Remove" />
+                </StackPanel>
 
                 <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Token Status: " VerticalAlignment="Center" />
+                    <TextBlock Text="OAuth Status: " VerticalAlignment="Center" />
+                    <Image MaxHeight="16px" Source="{Binding TokenStatus, Converter={StaticResource TokenStatusConverter}}" />
                 </StackPanel>
                 <Button Grid.Column="5" Content="Get Access Token" />
             </Grid>
@@ -54,7 +83,7 @@
         </StackPanel>
 
         <GroupBox Grid.Row="1" Header="Bot Commands">
-            <ListView ItemsSource="{Binding ChatCommands}">
+            <!-- <ListView ItemsSource="{Binding ChatCommands}">
                 <ListView.View>
                     <GridView>
                         <GridViewColumn Header="Command" Width="Auto">
@@ -76,7 +105,31 @@
                         </GridViewColumn>
                     </GridView>
                 </ListView.View>
-            </ListView>
+            </ListView> -->
+            <DataGrid AutoGenerateColumns="False" 
+                      IsReadOnly="True"
+                      CanUserSortColumns="False"
+                      ItemsSource="{Binding ChatCommands}">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn>
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="..." />
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <DataGridTextColumn Width="75" Header="Command" Binding="{Binding Command}" />
+
+                    <DataGridTextColumn Width="*" Header="Output Message" Binding="{Binding Message}">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style>
+                                <Setter Property="TextBlock.TextWrapping" Value="Wrap" />
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
         </GroupBox>
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
             <Button Margin="0 0.5 1.5 0.5" Width="25" Content="+" Command="{Binding AddCommand}" />
