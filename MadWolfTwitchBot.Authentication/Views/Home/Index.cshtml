@@ -1,0 +1,19 @@
+﻿@{
+    ViewData["Title"] = "Authenticated";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Account Successfully Authenticated</h1>
+    <p>This window can now be closed</p>
+</div>
+
+<input type="hidden" id="token-details" value="@ViewData["TokenString"]" />
+
+@section Scripts {
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        var data = window.document.getElementById('token-details').value;
+        window.chrome.webview.postMessage(data);
+    });
+</script>
+}

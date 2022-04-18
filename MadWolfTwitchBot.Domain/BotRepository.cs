@@ -14,7 +14,7 @@ namespace MadWolfTwitchBot.Domain
             m_tableName = "bot";
         }
 
-        public async Task<Bot> Save(long id, string username, string displayName, string token, DateTime timestamp, long channel)
+        public async Task<Bot> Save(long id, string username, string displayName, string token, string refresh, DateTime? timestamp, long? channel)
         {
             var botData = new Bot()
             {
@@ -24,6 +24,7 @@ namespace MadWolfTwitchBot.Domain
                 DisplayName = displayName,
 
                 OAuthToken = token,
+                RefreshToken = refresh,
                 TokenTimestamp = timestamp,
 
                 ChannelId = channel
@@ -33,12 +34,15 @@ namespace MadWolfTwitchBot.Domain
         }
         private async Task<Bot> Save(Bot data)
         {
+            var isSuccessful = true;
+
             var query = @"UPDATE 
     bot
 SET
     username = @Username,
-    displayname = @DisplayName,
+    display_name = @DisplayName,
     oauth_token = @Token,
+    refresh_token = @Refresh,
     token_timestamp = @Timestamp,
     channel_id = @Channel
 WHERE
@@ -50,7 +54,7 @@ WHERE
             {
                 try
                 {
-                    using var cmd = new SqliteCommand(query, m_dbConnection);
+                    using var cmd = new SqliteCommand(query, m_dbConnection, (SqliteTransaction)transaction);
                     cmd.Parameters.AddWithValue("@Id", data.Id);
 
                     cmd.Parameters.AddWithValue("@Username", data.Username);
@@ -60,6 +64,11 @@ WHERE
                         cmd.Parameters.AddWithValue("@Token", data.OAuthToken);
                     else
                         cmd.Parameters.AddWithValue("@Token", DBNull.Value);
+
+                    if (data.RefreshToken != null)
+                        cmd.Parameters.AddWithValue("@Refresh", data.RefreshToken);
+                    else
+                        cmd.Parameters.AddWithValue("@Refresh", DBNull.Value);
 
                     if (data.TokenTimestamp != null)
                         cmd.Parameters.AddWithValue("@Timestamp", ((DateTime)data.TokenTimestamp).ToString("yyyy-MM-dd HH:mm:ss"));
@@ -78,12 +87,16 @@ WHERE
 
                     transaction.Commit();
                 }
-                catch (Exception ex) { transaction.Rollback(); }
+                catch (Exception ex) 
+                {
+                    isSuccessful = false;
+                    transaction.Rollback(); 
+                }
             }
 
             await m_dbConnection.CloseAsync();
 
-            return new Bot();
+            return isSuccessful ? data : null;
         }
     }
 }

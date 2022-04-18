@@ -4,7 +4,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:MadWolfTwitchBot.Client.ViewModel"
+        xmlns:local="clr-namespace:MadWolfTwitchBot.Client.ViewModel" 
+        xmlns:usercontrols="clr-namespace:MadWolfTwitchBot.Client.UserControls"
         mc:Ignorable="d"
         Title="BotDetailsWindow" 
         SizeToContent="WidthAndHeight"
@@ -45,11 +46,12 @@
         <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DisplayName}" />
 
         <Label Grid.Row="2">OAuth Token:</Label>
-        <TextBox Grid.Row="2" Grid.Column="1" IsEnabled="False" />
-        <Button Grid.Row="2" Grid.Column="2" Content="Generate Token" />
+        <usercontrols:OAuthTokenBox Grid.Row="2" Grid.Column="1" OAuthToken="{Binding OAuthToken}" IsEnabled="False" />
+        <Button Grid.Row="2" Grid.Column="2" Content="Generate Token" Command="{Binding TokenCommand}" />
 
         <Label Grid.Row="3">Token Last Verified:</Label>
         <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding TokenTimestamp}" IsEnabled="False" />
+        <Button Grid.Row="3" Grid.Column="2" Content="Validate" />
 
         <Button Grid.Row="4" Content="Delete" Visibility="{Binding IsNew, Converter={StaticResource VisibilityConverter}}" />
         <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">

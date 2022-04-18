@@ -23,7 +23,7 @@ namespace MadWolfTwitchBot.Domain
             return await ExecuteReaderAsync<T>(sql);
         }
 
-        public async virtual Task<T> GetById<T>(string id) where T : class, new()
+        public async virtual Task<T> GetById<T>(long id) where T : class, new()
         {
             var sql = $"SELECT * FROM {m_tableName} WHERE id = @Id";
             var param = new Dictionary<string, object>()
@@ -67,7 +67,7 @@ namespace MadWolfTwitchBot.Domain
                         }
 
                         if (reader[columnName] != DBNull.Value)
-                            prop.SetValue(obj, columnAttribute.Convert ? Convert.ChangeType(reader[columnName], prop.PropertyType) : reader[columnName]);
+                            prop.SetValue(obj, columnAttribute.Convert ? Convert.ChangeType(reader[columnName], Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType) : reader[columnName]);
                     }
 
                     result.Add(obj);

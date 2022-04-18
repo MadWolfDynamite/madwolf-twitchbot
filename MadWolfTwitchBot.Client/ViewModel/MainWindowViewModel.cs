@@ -66,9 +66,10 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 if (m_selectedBot != null)
                 {
                     TwitchChannels.Clear();
-                    GetChannelHistory(m_selectedBot.Id).GetAwaiter().GetResult();
+                    GetChannelHistory(m_selectedBot.Id);
 
                     TokenStatus = GetBotTokenStatus();
+                    SelectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == m_selectedBot.ChannelId);
                 }
                 else { TokenStatus = null; }
             }
@@ -133,11 +134,22 @@ namespace MadWolfTwitchBot.Client.ViewModel
             foreach (var bot in botData)
                 ConfiguredBots.Add(new BasicBot(bot));
 
-            m_selectedBot = ConfiguredBots.FirstOrDefault();
+            SetProperty(ref m_selectedBot, ConfiguredBots.FirstOrDefault(), nameof(SelectedBot));
             TokenStatus = GetBotTokenStatus();
 
             await GetChannelHistory(m_selectedBot.Id);
-            m_selectedChannel = TwitchChannels.Where(c => c.Id == m_selectedBot.ChannelId).FirstOrDefault();
+            m_selectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == m_selectedBot.ChannelId);
+        }
+
+        private async Task RefreshBotData(BasicBot selected = null)
+        {
+            ConfiguredBots.Clear();
+
+            var botData = await BotService.GetAllConfiguredBots();
+            foreach (var bot in botData)
+                ConfiguredBots.Add(new BasicBot(bot));
+
+            SelectedBot = ConfiguredBots.FirstOrDefault(b => b.Id == selected.Id);
         }
 
         private async Task GetChannelHistory(long Id)
@@ -162,9 +174,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (String.IsNullOrEmpty(SelectedBot.OAuthToken))
                 return OAuthTokenStatus.None;
 
-            var tokenAge = DateTime.Now - (SelectedBot.TokenTimestamp ?? DateTime.MinValue);
+            /*var tokenAge = DateTime.UtcNow - (SelectedBot.TokenTimestamp ?? DateTime.MinValue);
             if (tokenAge.TotalMinutes >= 30)
-                return OAuthTokenStatus.NeedsValidating;
+                return OAuthTokenStatus.NeedsValidating;*/
 
             return OAuthTokenStatus.Validated; // TODO: make an API call here
         }
@@ -173,7 +185,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         {
             return SelectedBot != null;
         }
-        private void EditBotDetails()
+        private async void EditBotDetails()
         {
             var windowModal = new BotDetailsWindow
             {
@@ -182,7 +194,16 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             if (windowModal.ShowDialog() == true)
             {
-                var test = windowModal.DataContext as BotDetailsViewModel;
+                var data = windowModal.DataContext as BotDetailsViewModel;
+                var result = await BotService.CreateOrUpdateBot(SelectedBot.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp);
+
+                if (result == null)
+                {
+                    System.Windows.MessageBox.Show("Oops...");
+                    return;
+                }
+
+                await RefreshBotData(new BasicBot(result));
             }
         }
 
@@ -195,6 +216,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         private void Connect()
         {
+            Messages.Clear();
+
             var msg = new Model.ChatMessage
             {
                 Message = $"Connecting to {SelectedChannel.DisplayName}...",
@@ -202,7 +225,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             };
             Messages.Add(msg);
 
-            ConnectionCredentials credentials = new ConnectionCredentials(SelectedBot.Username, SelectedBot.OAuthToken);
+            ConnectionCredentials credentials = new(SelectedBot.Username, SelectedBot.OAuthToken);
             var clientOptions = new ClientOptions
             {
                 MessagesAllowedInPeriod = 750,
@@ -325,6 +348,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            if (value == null)
+                return null;
+
             var status = (OAuthTokenStatus)value;
             return status switch
             {

@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MadWolfTwitchBot.Client.ViewModel"
         xmlns:model="clr-namespace:MadWolfTwitchBot.Client.Model"
+        xmlns:input="clr-namespace:Microsoft.Toolkit.Mvvm.Wpf.Input"
         mc:Ignorable="d"
         Title="{Binding Title}" Height="450" Width="800">
     <Window.DataContext>
@@ -78,8 +79,11 @@
             </Grid>
         </GroupBox>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
-            <Button Margin="0 1" Content="Connect" Command="{Binding ConnectCommand}" />
-            <Button Margin="0 1" Content="Disconnect" Command="{Binding DisconnectCommand}" />
+            <Button Margin="0 1" Content="Connect" Command="{Binding ConnectCommand}"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True"/>
+            
+            <Button Margin="0 1" Content="Disconnect" Command="{Binding DisconnectCommand}"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
         </StackPanel>
 
         <GroupBox Grid.Row="1" Header="Bot Commands">

@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MadWolfTwitchBot.Client.Model;
+using MadWolfTwitchBot.Client.View.Modals;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,8 +14,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
 {
     public class BotDetailsViewModel : ObservableObject
     {
-        private readonly string m_refresh;
-
         private string m_username;
         public string Username
         {
@@ -36,6 +35,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
             set => SetProperty(ref m_token, value);
         }
 
+        private string m_refresh;
+        public string RefreshToken
+        {
+            get => m_refresh;
+            set => SetProperty(ref m_refresh, value);
+        }
+
         private DateTime? m_timestamp;
         public DateTime? TokenTimestamp
         {
@@ -54,6 +60,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             get => !m_edit;
         }
 
+        public ICommand TokenCommand { get; private set; }
         public ICommand ConfirmCommand { get; private set; }
 
         public BotDetailsViewModel() : this(new BasicBot()) { }
@@ -63,12 +70,34 @@ namespace MadWolfTwitchBot.Client.ViewModel
             DisplayName = bot.DisplayName;
 
             OAuthToken = bot.OAuthToken;
-            m_refresh = bot.RefreshToken;
+            RefreshToken = bot.RefreshToken;
             TokenTimestamp = bot.TokenTimestamp;
 
             IsEditMode = !string.IsNullOrEmpty(bot.Username);
 
+            TokenCommand = new RelayCommand(GenerateOAuthToken, CanGenerateToken);
             ConfirmCommand = new RelayCommand<Window>(ConfirmDetails);
+        }
+
+        public bool CanGenerateToken()
+        {
+            return string.IsNullOrWhiteSpace(m_refresh) && !string.IsNullOrWhiteSpace(Username);
+        }
+        public void GenerateOAuthToken()
+        {
+            var tokenRequestWindow = new OAuthTokenRetievalWindow
+            {
+                DataContext = new OAuthTokenRetrievalViewModel(Username)
+            };
+
+            if (tokenRequestWindow.ShowDialog() == true) 
+            { 
+                var data = tokenRequestWindow.DataContext as OAuthTokenRetrievalViewModel;
+
+                OAuthToken = data.OAuthToken;
+                RefreshToken = data.RefreshToken;
+                TokenTimestamp = data.TokenTimestamp;
+            }
         }
 
         private void ConfirmDetails(Window window)
@@ -83,7 +112,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
             var isInEditMode = (bool)value;
-            return isInEditMode ? Visibility.Hidden : Visibility.Visible;
+            return isInEditMode ? Visibility.Collapsed : Visibility.Visible;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
