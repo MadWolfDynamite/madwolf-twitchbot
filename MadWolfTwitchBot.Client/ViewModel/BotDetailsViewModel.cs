@@ -1,11 +1,14 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MadWolfTwitchBot.Client.Constants;
 using MadWolfTwitchBot.Client.Model;
 using MadWolfTwitchBot.Client.View.Modals;
+using MadWolfTwitchBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -61,11 +64,15 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
 
         public ICommand TokenCommand { get; private set; }
+        public ICommand VerifyCommand { get; private set; }
+
         public ICommand ConfirmCommand { get; private set; }
 
         public BotDetailsViewModel() : this(new BasicBot()) { }
         public BotDetailsViewModel(BasicBot bot)
         {
+            WolfAPIService.SetApiEndpoint(ApiSettings.Endpoint);
+
             Username = bot.Username;
             DisplayName = bot.DisplayName;
 
@@ -76,14 +83,16 @@ namespace MadWolfTwitchBot.Client.ViewModel
             IsEditMode = !string.IsNullOrEmpty(bot.Username);
 
             TokenCommand = new RelayCommand(GenerateOAuthToken, CanGenerateToken);
+            VerifyCommand = new AsyncRelayCommand(VerifyOAuthToken, CanVerifyToken);
+
             ConfirmCommand = new RelayCommand<Window>(ConfirmDetails);
         }
 
-        public bool CanGenerateToken()
+        private bool CanGenerateToken()
         {
-            return string.IsNullOrWhiteSpace(m_refresh) && !string.IsNullOrWhiteSpace(Username);
+            return string.IsNullOrWhiteSpace(RefreshToken) && !string.IsNullOrWhiteSpace(Username);
         }
-        public void GenerateOAuthToken()
+        private void GenerateOAuthToken()
         {
             var tokenRequestWindow = new OAuthTokenRetievalWindow
             {
@@ -99,6 +108,30 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 TokenTimestamp = data.TokenTimestamp;
             }
         }
+
+        private bool CanVerifyToken()
+        {
+            var tokenAge = DateTime.UtcNow - (TokenTimestamp ?? DateTime.MinValue);
+            return tokenAge.TotalMinutes >= TokenSettings.RefreshMinutes && !string.IsNullOrWhiteSpace(RefreshToken);
+        }
+        private async Task VerifyOAuthToken()
+        {
+            var validationResult = await WolfAPIService.ValidateOAuthToken(OAuthToken);
+            if (!validationResult)
+            {
+                var dialog = MessageBox.Show("OAuth Token has expired. Would you like to refresh?", "Token Expired", MessageBoxButton.YesNo);
+                if (dialog != MessageBoxResult.Yes)
+                    return;
+
+                var newToken = await WolfAPIService.RefreshTwitchTokenAsync(ApiSettings.ClientId, ApiSettings.ClientSecret, RefreshToken);
+                if (newToken != null)
+                {
+                    OAuthToken = newToken.Access_Token;
+                    RefreshToken = newToken.Refresh_Token;
+                    TokenTimestamp = DateTime.UtcNow;
+                }
+            }
+        } 
 
         private void ConfirmDetails(Window window)
         {

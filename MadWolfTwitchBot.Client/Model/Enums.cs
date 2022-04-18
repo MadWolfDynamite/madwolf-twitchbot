@@ -7,8 +7,7 @@ namespace MadWolfTwitchBot.Client.Model
    public enum OAuthTokenStatus
     {
         None = 0,
-        NotValidated = 1,
-        Validated = 2,
-        NeedsValidating = 3
+        NotValid = 1,
+        Valid = 2
     }
 }

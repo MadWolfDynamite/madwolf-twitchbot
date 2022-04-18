@@ -8,7 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="icons\StatusInvalidOutline_16x.png" />
+    <None Remove="icons\StatusOKOutline_16x.png" />
     <None Remove="icons\StatusOK_16x.png" />
+    <None Remove="icons\StatusSecurityWarningOutline_16x.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,9 +28,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="icons\StatusInvalidOutline_16x.png" />
+    <Resource Include="icons\StatusOKOutline_16x.png" />
     <Resource Include="icons\StatusOK_16x.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
+    <Resource Include="icons\StatusSecurityWarningOutline_16x.png" />
   </ItemGroup>
 
 </Project>

@@ -60,25 +60,11 @@ WHERE
                     cmd.Parameters.AddWithValue("@Username", data.Username);
                     cmd.Parameters.AddWithValue("@DisplayName", data.DisplayName);
 
-                    if (data.OAuthToken != null)
-                        cmd.Parameters.AddWithValue("@Token", data.OAuthToken);
-                    else
-                        cmd.Parameters.AddWithValue("@Token", DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Token", data.OAuthToken != null ? data.OAuthToken : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Refresh", data.RefreshToken != null ? data.RefreshToken : DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Timestamp", data.TokenTimestamp != null ? ((DateTime)data.TokenTimestamp).ToString("yyyy-MM-dd HH:mm:ss") : DBNull.Value);
 
-                    if (data.RefreshToken != null)
-                        cmd.Parameters.AddWithValue("@Refresh", data.RefreshToken);
-                    else
-                        cmd.Parameters.AddWithValue("@Refresh", DBNull.Value);
-
-                    if (data.TokenTimestamp != null)
-                        cmd.Parameters.AddWithValue("@Timestamp", ((DateTime)data.TokenTimestamp).ToString("yyyy-MM-dd HH:mm:ss"));
-                    else
-                        cmd.Parameters.AddWithValue("@Timestamp", DBNull.Value);
-
-                    if (data.ChannelId != null)
-                        cmd.Parameters.AddWithValue("@Channel", data.ChannelId);
-                    else
-                        cmd.Parameters.AddWithValue("@Channel", DBNull.Value);
+                    cmd.Parameters.AddWithValue("@Channel", data.ChannelId != null ? data.ChannelId : DBNull.Value);
 
                     var updatedRows = cmd.ExecuteNonQuery();
 

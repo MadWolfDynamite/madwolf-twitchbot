@@ -23,27 +23,28 @@
         </Grid.ColumnDefinitions>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="45" />
+            <RowDefinition Height="75" />
             <RowDefinition Height="*" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <GroupBox Header="Bot Details" IsEnabled="{Binding IsDisconnected}">
-            <Grid HorizontalAlignment="Center">
+            <Grid HorizontalAlignment="Stretch">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
 
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="100" />
                 </Grid.ColumnDefinitions>
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="25" />
+                    <RowDefinition Height="25" />
+                </Grid.RowDefinitions>
 
                 <TextBlock Text="Username" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <ComboBox MinWidth="125" ItemsSource="{Binding ConfiguredBots}" SelectedItem="{Binding SelectedBot}" >
+                    <ComboBox Width="160" ItemsSource="{Binding ConfiguredBots}" SelectedItem="{Binding SelectedBot}" >
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="{x:Type model:BasicBot}">
                                 <TextBlock Text="{Binding DisplayName}" />
@@ -51,14 +52,14 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <Button Content="Add" />
-                    <Button Content="Edit" Command="{Binding EditBotCommand}" />
-                    <Button Content="Remove" />
+                    <Button Width="50" Content="Add" />
+                    <Button Width="50" Content="Edit" Command="{Binding EditBotCommand}" />
+                    <Button Width="50" Content="Remove" />
                 </StackPanel>
                 
-                <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Channel" />
-                <StackPanel Grid.Column="3" Orientation="Horizontal">
-                    <ComboBox MinWidth="125" IsEditable="True" ItemsSource="{Binding TwitchChannels}" SelectedItem="{Binding SelectedChannel}">
+                <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Channel" />
+                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                    <ComboBox Width="160" IsEditable="True" ItemsSource="{Binding TwitchChannels}" SelectedItem="{Binding SelectedChannel}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="{x:Type model:BasicChannel}">
                                 <TextBlock Text="{Binding DisplayName}" />
@@ -66,21 +67,28 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <Button Content="Verify" />
-                    <Button Content="Edit" />
-                    <Button Content="Remove" />
+                    <Button Width="50" Content="Verify" />
+                    <Button Width="50" Content="Edit" />
+                    <Button Width="50" Content="Remove" />
                 </StackPanel>
 
-                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="OAuth Status: " VerticalAlignment="Center" />
-                    <Image MaxHeight="16px" Source="{Binding TokenStatus, Converter={StaticResource TokenStatusConverter}}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Grid.Column="2" Text="Token Status" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                    <Image Grid.Column="3" MaxHeight="16px" Source="{Binding TokenStatus, Converter={StaticResource TokenStatusConverter}}" />
                 </StackPanel>
-                <Button Grid.Column="5" Content="Get Access Token" />
+
+                <StackPanel Grid.Row="1" Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="Refresh Token" Command="{Binding RefreshTokenCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                    <Button Content="Generate Token" Command="{Binding GetTokenCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                </StackPanel>
+                
             </Grid>
         </GroupBox>
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
             <Button Margin="0 1" Content="Connect" Command="{Binding ConnectCommand}"
-                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True"/>
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
             
             <Button Margin="0 1" Content="Disconnect" Command="{Binding DisconnectCommand}"
                     input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />

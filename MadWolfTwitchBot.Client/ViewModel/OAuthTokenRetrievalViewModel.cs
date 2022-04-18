@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using MadWolfTwitchBot.Client.Constants;
 using MadWolfTwitchBot.Services;
 using System;
 using System.Collections.Generic;
@@ -47,7 +48,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public OAuthTokenRetrievalViewModel() : this(string.Empty) { }
         public OAuthTokenRetrievalViewModel(string user)
         {
-            WolfAPIService.SetApiEndpoint("https://localhost:44376/api/");
+            WolfAPIService.SetApiEndpoint(ApiSettings.Endpoint);
 
             Username = user;
 
@@ -57,7 +58,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         private async Task GenerateAuthUri()
         {
-            var baseUri = await WolfAPIService.GenerateAuthenticationUrl("jg7cpt2xjnrxln6lt6k4w2dnmggr5l", "https://localhost:44301/");
+            var baseUri = await WolfAPIService.GenerateAuthenticationUrl(ApiSettings.ClientId, "https://localhost:44301/");
             var uri = $"{baseUri}&force_verify=true&scope=channel:moderate chat:edit chat:read whispers:read whispers:edit";
 
             Uri = uri;

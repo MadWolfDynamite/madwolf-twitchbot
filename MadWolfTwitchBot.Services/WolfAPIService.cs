@@ -20,6 +20,53 @@ namespace MadWolfTwitchBot.Services
                 _client.BaseAddress = new Uri(endpoint);
         }
 
+        public static async Task<bool> ValidateOAuthToken(string token)
+        {
+            string apiPath = $"token/{token}";
+
+            var response = await _client.GetAsync(apiPath);
+            var stream = await response.Content.ReadAsStreamAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var validationData = StreamSerializer.DeserialiseJsonFromStream<bool>(stream);
+                return validationData;
+            }
+
+            var content = await StreamSerializer.StreamToStringAsync(stream);
+            throw new Exception(content);
+        }
+
+        public static async Task<Token> RefreshTwitchTokenAsync(string client, string secret, string token)
+        {
+            string apiPath = "token/refresh";
+
+            var data = new
+            {
+                ClientId = client,
+                ClientSecret = secret,
+
+                Token = token
+            };
+
+            var json = JsonConvert.SerializeObject(data);
+
+            var request = new StringContent(json);
+            request.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+            var response = await _client.PostAsync(apiPath, request);
+            var stream = await response.Content.ReadAsStreamAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var tokenData = StreamSerializer.DeserialiseJsonFromStream<Token>(stream);
+                return tokenData;
+            }
+
+            var content = await StreamSerializer.StreamToStringAsync(stream);
+            throw new Exception(content);
+        }
+
         public async static Task<string> GenerateAuthenticationUrl(string client, string url)
         {
             string apiPath = "token/url";
