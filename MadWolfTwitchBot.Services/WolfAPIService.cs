@@ -12,7 +12,7 @@ namespace MadWolfTwitchBot.Services
 {
     public static class WolfAPIService
     {
-        private static readonly HttpClient _client = new HttpClient();
+        private static readonly HttpClient _client = new();
 
         public static void SetApiEndpoint(string endpoint)
         {
@@ -33,8 +33,7 @@ namespace MadWolfTwitchBot.Services
                 return validationData;
             }
 
-            var content = await StreamSerializer.StreamToStringAsync(stream);
-            throw new Exception(content);
+            return false;
         }
 
         public static async Task<Token> RefreshTwitchTokenAsync(string client, string secret, string token)

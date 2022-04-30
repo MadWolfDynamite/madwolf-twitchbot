@@ -52,7 +52,7 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <Button Width="50" Content="Add" />
+                    <Button Width="50" Content="Add" Command="{Binding AddBotCommand}" />
                     <Button Width="50" Content="Edit" Command="{Binding EditBotCommand}" />
                     <Button Width="50" Content="Remove" />
                 </StackPanel>

@@ -66,10 +66,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
                 if (m_selectedBot != null)
                 {
-                    TwitchChannels.Clear();
                     GetChannelHistory(m_selectedBot.Id);
-
-                    TokenStatus = GetBotTokenStatus().Result; 
+                    UpdateBotTokenStatus(); 
                 }
                 else { TokenStatus = null; }
             }
@@ -91,16 +89,17 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public ObservableCollection<Model.ChatMessage> Messages { get; set; } = new ObservableCollection<Model.ChatMessage>();
 
-        public ICommand EditBotCommand { get; private set; }
+        public ICommand AddBotCommand { get; }
+        public ICommand EditBotCommand { get; }
 
-        public ICommand GetTokenCommand { get; private set; }
-        public ICommand RefreshTokenCommand { get; private set; }
+        public ICommand GetTokenCommand { get; }
+        public ICommand RefreshTokenCommand { get; }
 
-        public ICommand ConnectCommand { get; private set; }
-        public ICommand DisconnectCommand { get; private set; }
+        public ICommand ConnectCommand { get;}
+        public ICommand DisconnectCommand { get; }
 
-        public ICommand AddCommand { get; private set; }
-        public ICommand RemoveCommand { get; private set; }
+        public ICommand AddCommand { get; }
+        public ICommand RemoveCommand { get; }
 
         public MainWindowViewModel()
         {
@@ -122,6 +121,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 ChatCommands.Add(data);
             }
 
+            AddBotCommand = new AsyncRelayCommand(AddNewBot);
             EditBotCommand = new AsyncRelayCommand(EditBotDetails, CanEditBotDetails);
 
             GetTokenCommand = new AsyncRelayCommand(GetOAuthToken, CanGetOAuthToken);
@@ -143,10 +143,19 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             SetProperty(ref m_selectedBot, ConfiguredBots.FirstOrDefault(), nameof(SelectedBot));
 
-            await GetChannelHistory(m_selectedBot.Id);
-            m_selectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == m_selectedBot.ChannelId);
+            if (SelectedBot != null)
+            {
+                await GetChannelHistory(SelectedBot.Id);
+                m_selectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == SelectedBot.ChannelId);
 
-            TokenStatus = await GetBotTokenStatus();
+                TokenStatus = await GetBotTokenStatus();
+            }
+            else
+            {
+                var channelData = await ChannelService.GetAllTwitchChannels();
+                foreach (var channel in channelData)
+                    TwitchChannels.Add(new BasicChannel(channel));
+            }
         }
 
         private async Task RefreshBotData(BasicBot selected = null)
@@ -157,7 +166,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
             foreach (var bot in botData)
                 ConfiguredBots.Add(new BasicBot(bot));
 
-            SelectedBot = ConfiguredBots.FirstOrDefault(b => b.Id == selected.Id);
+            SelectedBot = selected != null 
+                ? ConfiguredBots.FirstOrDefault(b => b.Username.Equals(selected.Username))
+                : ConfiguredBots.FirstOrDefault();
         }
 
         private async Task GetChannelHistory(long Id)
@@ -173,10 +184,19 @@ namespace MadWolfTwitchBot.Client.ViewModel
                     DisplayName = history.ChannelName
                 };
 
-                TwitchChannels.Add(channel);
+                var existingChannel = TwitchChannels.FirstOrDefault(c => c.Id == channel.Id);
+                if (existingChannel == null)
+                    TwitchChannels.Add(channel);
             }
 
-            SelectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == m_selectedBot.ChannelId);
+            if (!TwitchChannels.Any())
+            {
+                var channelData = await ChannelService.GetAllTwitchChannels();
+                foreach (var channel in channelData)
+                    TwitchChannels.Add(new BasicChannel(channel));
+            }
+
+            SelectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == SelectedBot.ChannelId);
         }
 
         private async Task<OAuthTokenStatus> GetBotTokenStatus()
@@ -192,6 +212,10 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
                 
             return OAuthTokenStatus.Valid;
+        }
+        private async Task UpdateBotTokenStatus()
+        {
+            TokenStatus = await GetBotTokenStatus();
         }
 
         private bool CanGetOAuthToken()
@@ -212,7 +236,15 @@ namespace MadWolfTwitchBot.Client.ViewModel
             {
                 var data = tokenRequestWindow.DataContext as OAuthTokenRetrievalViewModel;
 
-                var updatedDetails = await BotService.CreateOrUpdateBot(SelectedBot.Id, SelectedBot.Username, SelectedBot.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp);
+                var updatedDetails = await BotService.CreateOrUpdateBot(
+                    SelectedBot.Id, 
+                    SelectedBot.Username, 
+                    SelectedBot.DisplayName, 
+                    data.OAuthToken, 
+                    data.RefreshToken, 
+                    data.TokenTimestamp, 
+                    SelectedChannel.Id);
+
                 if (updatedDetails != null)
                     await RefreshBotData(new BasicBot(updatedDetails));
             }
@@ -230,9 +262,46 @@ namespace MadWolfTwitchBot.Client.ViewModel
             var newToken = await WolfAPIService.RefreshTwitchTokenAsync(ApiSettings.ClientId, ApiSettings.ClientSecret, SelectedBot.RefreshToken);
             if (newToken != null)
             {
-                var updatedDetails = await BotService.CreateOrUpdateBot(SelectedBot.Id, SelectedBot.Username, SelectedBot.DisplayName, newToken.Access_Token, newToken.Refresh_Token, DateTime.UtcNow);
+                var updatedDetails = await BotService.CreateOrUpdateBot(
+                    SelectedBot.Id, 
+                    SelectedBot.Username, 
+                    SelectedBot.DisplayName, 
+                    newToken.Access_Token, 
+                    newToken.Refresh_Token, 
+                    DateTime.UtcNow, 
+                    SelectedChannel.Id);
+
                 if (updatedDetails != null)
                     await RefreshBotData(new BasicBot(updatedDetails));
+            }
+        }
+
+        private async Task AddNewBot()
+        {
+            var windowModal = new BotDetailsWindow
+            {
+                DataContext = new BotDetailsViewModel()
+            };
+
+            if (windowModal.ShowDialog() == true)
+            {
+                var data = windowModal.DataContext as BotDetailsViewModel;
+                var result = await BotService.CreateOrUpdateBot(
+                    0,
+                    data.Username,
+                    data.DisplayName,
+                    data.OAuthToken,
+                    data.RefreshToken,
+                    data.TokenTimestamp,
+                    SelectedChannel.Id);
+
+                if (result == null)
+                {
+                    System.Windows.MessageBox.Show("Oops...");
+                    return;
+                }
+
+                await RefreshBotData(new BasicBot(result));
             }
         }
 
@@ -250,7 +319,14 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (windowModal.ShowDialog() == true)
             {
                 var data = windowModal.DataContext as BotDetailsViewModel;
-                var result = await BotService.CreateOrUpdateBot(SelectedBot.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp);
+                var result = await BotService.CreateOrUpdateBot(
+                    SelectedBot.Id, 
+                    data.Username, 
+                    data.DisplayName, 
+                    data.OAuthToken, 
+                    data.RefreshToken, 
+                    data.TokenTimestamp, 
+                    SelectedChannel.Id);
 
                 if (result == null)
                 {
@@ -309,7 +385,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             _client.Disconnect();
         }
 
-        private void OnBotConnected(object sender, OnConnectedArgs e)
+        private async void OnBotConnected(object sender, OnConnectedArgs e)
         {
             Title = $"[CONNECTED] {Title}";
             IsDisconnected = false;
@@ -320,6 +396,15 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 HexColour = "#FF000000"
             };
             _uiContext.Send(x => Messages.Add(msg), null);
+
+            var result = await BotService.CreateOrUpdateBot(
+                SelectedBot.Id, 
+                SelectedBot.Username, 
+                SelectedBot.DisplayName, 
+                SelectedBot.OAuthToken, 
+                SelectedBot.RefreshToken, 
+                SelectedBot.TokenTimestamp, 
+                SelectedChannel.Id);
         }
         private void OnBotDisconnected(object sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
         {

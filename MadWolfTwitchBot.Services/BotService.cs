@@ -15,7 +15,7 @@ namespace MadWolfTwitchBot.Services
             return await m_repository.ListAll<Bot>();
         }
 
-        public static async Task<Bot> CreateOrUpdateBot(long id, string user, string display, string token, string refresh, DateTime? timestamp)
+        public static async Task<Bot> CreateOrUpdateBot(long id, string user, string display, string token, string refresh, DateTime? timestamp, long? channel = null)
         {
             var data = await m_repository.GetById<Bot>(id);
             var isNew = data == null;
@@ -30,7 +30,12 @@ namespace MadWolfTwitchBot.Services
             data.RefreshToken = refresh;
             data.TokenTimestamp = timestamp;
 
-            var result = isNew ? null : await m_repository.Save(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId);
+            data.ChannelId = channel;
+
+            var result = isNew 
+                ? await m_repository.CreateNewBot(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId) 
+                : await m_repository.SaveBotDetails(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId);
+
             return result;
         }
     }

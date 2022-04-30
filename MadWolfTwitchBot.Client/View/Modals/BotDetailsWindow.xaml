@@ -24,7 +24,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="125" />
+            <ColumnDefinition Width="140" />
             <ColumnDefinition Width="250" />
 
             <ColumnDefinition Width="125" />
@@ -41,7 +41,8 @@
 
         <Label>Username:</Label>
         <TextBox Grid.Column="1" Text="{Binding Username}" IsEnabled="{Binding IsNew}" />
-        <Button Grid.Column="2" Content="Verify" Visibility="{Binding IsEditMode, Converter={StaticResource VisibilityConverter}}" />
+        <Button Grid.Column="2" Content="Validate" Command="{Binding VerifyUserCommand}" Visibility="{Binding IsEditMode, Converter={StaticResource VisibilityConverter}}"
+                input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
 
         <Label Grid.Row="1">Display Name:</Label>
         <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DisplayName}" />
@@ -51,14 +52,15 @@
         <Button Grid.Row="2" Grid.Column="2" Content="Generate Token" Command="{Binding TokenCommand}"
                 input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
 
-        <Label Grid.Row="3">Token Last Verified:</Label>
+        <Label Grid.Row="3">Token Last Verified (UTC):</Label>
         <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding TokenTimestamp, StringFormat='dd/MM/yyyy HH:mm:ss'}" IsEnabled="False" />
-        <Button Grid.Row="3" Grid.Column="2" Content="Validate" Command="{Binding VerifyCommand}"
+        <Button Grid.Row="3" Grid.Column="2" Content="Validate" Command="{Binding VerifyTokenCommand}"
                 input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
 
         <Button Grid.Row="4" Content="Delete" Visibility="{Binding IsNew, Converter={StaticResource VisibilityConverter}}" />
         <StackPanel Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Width="125" IsDefault="True" Content="Save" Command="{Binding ConfirmCommand}" CommandParameter="{Binding ElementName=ActiveWindow}" />
+            <Button Width="125" IsDefault="True" Content="Save" Command="{Binding ConfirmCommand}" CommandParameter="{Binding ElementName=ActiveWindow}"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
             <Button Width="125" IsCancel="True" Content="Cancel" />
         </StackPanel>
     </Grid>

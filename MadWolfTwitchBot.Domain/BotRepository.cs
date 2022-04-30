@@ -14,7 +14,7 @@ namespace MadWolfTwitchBot.Domain
             m_tableName = "bot";
         }
 
-        public async Task<Bot> Save(long id, string username, string displayName, string token, string refresh, DateTime? timestamp, long? channel)
+        public async Task<Bot> CreateNewBot(long id, string username, string displayName, string token, string refresh, DateTime? timestamp, long? channel)
         {
             var botData = new Bot()
             {
@@ -30,23 +30,46 @@ namespace MadWolfTwitchBot.Domain
                 ChannelId = channel
             };
 
-            return await Save(botData);
+            var query = @"INSERT INTO bot (username, display_name, oauth_token, refresh_token, token_timestamp, channel_id)
+VALUES (@Username, @DisplayName, @Token, @Refresh, @Timestamp, @Channel)";
+
+            return await Save(botData, query);
         }
-        private async Task<Bot> Save(Bot data)
+
+        public async Task<Bot> SaveBotDetails(long id, string username, string displayName, string token, string refresh, DateTime? timestamp, long? channel)
         {
-            var isSuccessful = true;
+            var botData = new Bot()
+            {
+                Id = id,
+
+                Username = username,
+                DisplayName = displayName,
+
+                OAuthToken = token,
+                RefreshToken = refresh,
+                TokenTimestamp = timestamp,
+
+                ChannelId = channel
+            };
 
             var query = @"UPDATE 
     bot
 SET
-    username = @Username,
-    display_name = @DisplayName,
-    oauth_token = @Token,
-    refresh_token = @Refresh,
+    username        = @Username,
+    display_name    = @DisplayName,
+    oauth_token     = @Token,
+    refresh_token   = @Refresh,
     token_timestamp = @Timestamp,
-    channel_id = @Channel
+    channel_id      = @Channel
 WHERE
     id = @Id";
+
+            return await Save(botData, query);
+        }
+
+        private async Task<Bot> Save(Bot data, string query)
+        {
+            var isSuccessful = true;
 
             await m_dbConnection.OpenAsync();
 

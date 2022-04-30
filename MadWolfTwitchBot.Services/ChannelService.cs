@@ -9,7 +9,7 @@ namespace MadWolfTwitchBot.Services
 {
     public static class ChannelService
     {
-        private static readonly ChannelRepository m_repository = new ChannelRepository(@"D:\DevStuff\bottest.db");
+        private static readonly ChannelRepository m_repository = new(@"D:\DevStuff\bottest.db");
 
         public static async Task<IEnumerable<Channel>> GetAllTwitchChannels()
         {

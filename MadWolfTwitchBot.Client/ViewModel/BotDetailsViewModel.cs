@@ -7,6 +7,7 @@ using MadWolfTwitchBot.Services;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -17,11 +18,17 @@ namespace MadWolfTwitchBot.Client.ViewModel
 {
     public class BotDetailsViewModel : ObservableObject
     {
+        private HttpClient m_client;
+
         private string m_username;
         public string Username
         {
             get => m_username;
-            set => SetProperty(ref m_username, value);
+            set
+            {
+                SetProperty(ref m_username, value);
+                IsVerified = false;
+            }
         }
 
         private string m_displayName;
@@ -52,6 +59,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
             set => SetProperty(ref m_timestamp, value);
         }
 
+        private bool m_verified;
+        public bool IsVerified
+        {
+            get => m_verified;
+            set => SetProperty(ref m_verified, value);
+        }
+
         private bool m_edit;
         public bool IsEditMode
         {
@@ -63,15 +77,24 @@ namespace MadWolfTwitchBot.Client.ViewModel
             get => !m_edit;
         }
 
-        public ICommand TokenCommand { get; private set; }
-        public ICommand VerifyCommand { get; private set; }
+        public ICommand VerifyUserCommand { get; }
 
-        public ICommand ConfirmCommand { get; private set; }
+        public ICommand TokenCommand { get; }
+        public ICommand VerifyTokenCommand { get; }
+
+        public ICommand ConfirmCommand { get; }
 
         public BotDetailsViewModel() : this(new BasicBot()) { }
         public BotDetailsViewModel(BasicBot bot)
         {
             WolfAPIService.SetApiEndpoint(ApiSettings.Endpoint);
+
+            var socketHttpHandler = new SocketsHttpHandler()
+            {
+                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(90),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            };
+            m_client = new HttpClient(socketHttpHandler);
 
             Username = bot.Username;
             DisplayName = bot.DisplayName;
@@ -81,11 +104,31 @@ namespace MadWolfTwitchBot.Client.ViewModel
             TokenTimestamp = bot.TokenTimestamp;
 
             IsEditMode = !string.IsNullOrEmpty(bot.Username);
+            IsVerified = IsEditMode;
+
+            VerifyUserCommand = new AsyncRelayCommand(ValidateUsername, CanVerifyUser);
 
             TokenCommand = new RelayCommand(GenerateOAuthToken, CanGenerateToken);
-            VerifyCommand = new AsyncRelayCommand(VerifyOAuthToken, CanVerifyToken);
+            VerifyTokenCommand = new AsyncRelayCommand(VerifyOAuthToken, CanVerifyToken);
 
-            ConfirmCommand = new RelayCommand<Window>(ConfirmDetails);
+            ConfirmCommand = new RelayCommand<Window>(ConfirmDetails, CanConfirmDetails);
+        }
+
+        private bool CanVerifyUser()
+        {
+            return !IsVerified && !string.IsNullOrWhiteSpace(Username);
+        }
+        private async Task ValidateUsername()
+        {
+            var url = $"https://www.twitch.tv/{Username.ToLower()}";
+            var request = new HttpRequestMessage 
+            { 
+                RequestUri = new Uri(url),
+                Method = HttpMethod.Head
+            }; 
+
+            var result = await m_client.SendAsync(request);
+            IsVerified = result.IsSuccessStatusCode; //TODO: A better means of validating (this is always true regardless)
         }
 
         private bool CanGenerateToken()
@@ -131,12 +174,17 @@ namespace MadWolfTwitchBot.Client.ViewModel
                     TokenTimestamp = DateTime.UtcNow;
                 }
             }
+            else { TokenTimestamp = DateTime.UtcNow; }
         } 
 
-        private void ConfirmDetails(Window window)
+        private bool CanConfirmDetails(Window sender)
         {
-            window.DialogResult = true;
-            window.Close();
+            return IsVerified;
+        }
+        private void ConfirmDetails(Window sender)
+        {
+            sender.DialogResult = true;
+            sender.Close();
         }
     }
 
