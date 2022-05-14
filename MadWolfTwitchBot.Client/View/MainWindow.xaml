@@ -53,13 +53,15 @@
                     </ComboBox>
 
                     <Button Width="50" Content="Add" Command="{Binding AddBotCommand}" />
-                    <Button Width="50" Content="Edit" Command="{Binding EditBotCommand}" />
-                    <Button Width="50" Content="Remove" />
+                    <Button Width="50" Content="Edit" Command="{Binding EditBotCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                    <Button Width="50" Content="Remove" Command="{Binding DeleteBotCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
                 </StackPanel>
                 
                 <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="Channel" />
                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-                    <ComboBox Width="160" IsEditable="True" ItemsSource="{Binding TwitchChannels}" SelectedItem="{Binding SelectedChannel}">
+                    <ComboBox Width="160" IsEditable="True" ItemsSource="{Binding TwitchChannels}" SelectedItem="{Binding SelectedChannel}" Text="{Binding ChannelSearch, UpdateSourceTrigger=LostFocus}">
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="{x:Type model:BasicChannel}">
                                 <TextBlock Text="{Binding DisplayName}" />
@@ -67,7 +69,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
 
-                    <Button Width="50" Content="Verify" />
+                    <Button Width="50" Content="Validate" Command="{Binding ValidateChannelCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True"/>
                     <Button Width="50" Content="Edit" />
                     <Button Width="50" Content="Remove" />
                 </StackPanel>

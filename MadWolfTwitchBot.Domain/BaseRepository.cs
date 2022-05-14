@@ -12,7 +12,7 @@ namespace MadWolfTwitchBot.Domain
         protected readonly SqliteConnection m_dbConnection;
         protected string m_tableName;
 
-        public BaseRepository(string dbPath)
+        protected BaseRepository(string dbPath)
         {
             m_dbConnection = new SqliteConnection($"Data Source={dbPath}");
         }
@@ -35,6 +35,42 @@ namespace MadWolfTwitchBot.Domain
             return result.FirstOrDefault();
         }
 
+        public async Task<bool> DeleteById(long id)
+        {
+            return await Delete(id);
+        }
+        private async Task<bool> Delete(long id)
+        {
+            var isSuccessful = true;
+
+            var query = $"DELETE FROM {m_tableName} WHERE id = @Id";
+            await m_dbConnection.OpenAsync();
+
+            using (var transaction = await m_dbConnection.BeginTransactionAsync())
+            {
+                try
+                {
+                    using var cmd = new SqliteCommand(query, m_dbConnection, (SqliteTransaction)transaction);
+                    cmd.Parameters.AddWithValue("@Id", id);
+
+                    var afftectedRows = cmd.ExecuteNonQuery();
+                    if (afftectedRows < 1)
+                        throw new InvalidOperationException($"Id {id} not found in {m_tableName}. May already be deleted.");
+
+                    transaction.Commit();
+                }
+                catch
+                {
+                    isSuccessful = false;
+                    transaction.Rollback();
+                }
+            }
+
+            await m_dbConnection.CloseAsync();
+
+            return isSuccessful;
+        }
+
         protected async Task<IEnumerable<T>> ExecuteReaderAsync<T>(string query, IDictionary<string, object> args = null) where T : class, new()
         {
             var result = new List<T>();
@@ -52,7 +88,7 @@ namespace MadWolfTwitchBot.Domain
                 using var reader = await cmd.ExecuteReaderAsync();
                 while (reader.Read())
                 {
-                    T obj = new T();
+                    T obj = new();
                     foreach (var prop in obj.GetType().GetProperties())
                     {
                         var columnAttribute = (DbColumnAttribute)Attribute.GetCustomAttribute(prop, typeof(DbColumnAttribute));

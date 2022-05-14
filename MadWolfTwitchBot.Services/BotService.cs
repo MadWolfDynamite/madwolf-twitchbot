@@ -15,7 +15,14 @@ namespace MadWolfTwitchBot.Services
             return await m_repository.ListAll<Bot>();
         }
 
-        public static async Task<Bot> CreateOrUpdateBot(long id, string user, string display, string token, string refresh, DateTime? timestamp, long? channel = null)
+        public static async Task<Bot> CreateOrUpdateBot(
+            long id, 
+            string user, 
+            string display, 
+            string token, 
+            string refresh, 
+            DateTime? timestamp, 
+            long? channel = null)
         {
             var data = await m_repository.GetById<Bot>(id);
             var isNew = data == null;
@@ -37,6 +44,11 @@ namespace MadWolfTwitchBot.Services
                 : await m_repository.SaveBotDetails(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId);
 
             return result;
+        }
+
+        public static async Task<bool> DeleteBot(long id)
+        {
+            return await m_repository.DeleteById(id);
         }
     }
 }

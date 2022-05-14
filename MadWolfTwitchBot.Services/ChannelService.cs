@@ -15,5 +15,30 @@ namespace MadWolfTwitchBot.Services
         {
             return await m_repository.ListAll<Channel>();
         }
+
+        public static async Task<Channel> CreateOrUpdateChannel(long id, string username, string displayname)
+        {
+            var data = await m_repository.GetById<Channel>(id);
+            var isNew = data == null;
+
+            if (isNew)
+                data = new Channel();
+
+            data.Id = id;
+
+            data.Username = username;
+            data.DisplayName = displayname;
+
+            var result = isNew
+                ? await m_repository.CreateNewChannel(data.Id, data.Username, data.DisplayName)
+                : await m_repository.SaveChannelDetails(data.Id, data.Username, data.DisplayName);
+
+            return result;
+        }
+
+        public static async Task<bool> DeleteChannel(long id)
+        {
+            return await m_repository.DeleteById(id);
+        }
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -30,7 +31,7 @@ namespace MadWolfTwitchBot.Domain
                 ChannelId = channel
             };
 
-            var query = @"INSERT INTO bot (username, display_name, oauth_token, refresh_token, token_timestamp, channel_id)
+            var query = @$"INSERT INTO {m_tableName} (username, display_name, oauth_token, refresh_token, token_timestamp, channel_id)
 VALUES (@Username, @DisplayName, @Token, @Refresh, @Timestamp, @Channel)";
 
             return await Save(botData, query);
@@ -52,8 +53,8 @@ VALUES (@Username, @DisplayName, @Token, @Refresh, @Timestamp, @Channel)";
                 ChannelId = channel
             };
 
-            var query = @"UPDATE 
-    bot
+            var query = @$"UPDATE 
+    {m_tableName}
 SET
     username        = @Username,
     display_name    = @DisplayName,
@@ -90,7 +91,6 @@ WHERE
                     cmd.Parameters.AddWithValue("@Channel", data.ChannelId != null ? data.ChannelId : DBNull.Value);
 
                     var updatedRows = cmd.ExecuteNonQuery();
-
                     if (updatedRows > 3)
                         throw new SqliteException("Too many rows affected", 50000);
 
@@ -105,7 +105,11 @@ WHERE
 
             await m_dbConnection.CloseAsync();
 
-            return isSuccessful ? data : null;
+            var result = isSuccessful
+                ? await ListAll<Bot>()
+                : new List<Bot>();
+
+            return result.FirstOrDefault(b => b.Username.Equals(data.Username));
         }
     }
 }

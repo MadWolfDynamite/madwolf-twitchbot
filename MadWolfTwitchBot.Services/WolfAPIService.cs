@@ -1,7 +1,9 @@
-﻿using MadWolfTwitchBot.Models.Twitch;
+﻿using MadWolfTwitchBot.Models;
+using MadWolfTwitchBot.Models.Twitch;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -113,6 +115,45 @@ namespace MadWolfTwitchBot.Services
 
             var content = await StreamSerializer.StreamToStringAsync(stream);
             throw new Exception(content);
+        }
+
+        public static async Task<Channel> GetChannelDetails(string client, string token, string channel)
+        {
+            string apiPath = GenerateApiPath($"account/{channel}", client, token);
+
+            var response = await _client.GetAsync(apiPath);
+            var stream = await response.Content.ReadAsStreamAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await StreamSerializer.StreamToStringAsync(stream);
+                throw new Exception(content);
+            }
+
+            var users = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Account>>(stream);
+            var selected = users.FirstOrDefault(u => u.Login.Equals(channel));
+
+            if (selected == null)
+                return null;
+
+            var result = new Channel()
+            {
+                Id = 0,
+
+                Username = selected.Login,
+                DisplayName = selected.Display_Name
+            };
+
+            return result;
+        }
+
+        private static string GenerateApiPath(string path, string client, string token)
+        {
+            var apiPath = path;
+            apiPath += $"?client={client}";
+            apiPath += $"&token={token}";
+
+            return apiPath;
         }
     }
 }

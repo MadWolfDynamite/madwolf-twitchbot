@@ -17,7 +17,7 @@ namespace MadWolfTwitchBot.Client.Model
         {
             Id = channel.Id;
 
-            UserName = channel.UserName;
+            UserName = channel.Username;
             DisplayName = channel.DisplayName;
         }
 
