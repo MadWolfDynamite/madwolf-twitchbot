@@ -9,7 +9,7 @@ namespace MadWolfTwitchBot.Client.Model
     {
         public long Id { get; set; }
 
-        public string UserName { get; set; }
+        public string Username { get; set; }
         public string DisplayName { get; set; }
 
         public BasicChannel() : this(new Channel()) { }
@@ -17,7 +17,7 @@ namespace MadWolfTwitchBot.Client.Model
         {
             Id = channel.Id;
 
-            UserName = channel.Username;
+            Username = channel.Username;
             DisplayName = channel.DisplayName;
         }
 

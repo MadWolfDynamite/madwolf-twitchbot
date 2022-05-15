@@ -18,7 +18,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 {
     public class BotDetailsViewModel : ObservableObject
     {
-        private HttpClient m_client;
+        private readonly HttpClient m_client;
 
         private string m_username;
         public string Username
@@ -188,7 +188,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
     }
 
-    class BoolToVisibilityConverter : IValueConverter
+    public class BoolToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

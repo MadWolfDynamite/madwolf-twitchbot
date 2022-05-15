@@ -107,6 +107,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public ICommand DeleteBotCommand { get; }
 
         public ICommand ValidateChannelCommand { get; }
+        public ICommand EditChannelCommand { get; }
+        public ICommand DeleteChannelCommand { get; }
 
         public ICommand GetTokenCommand { get; }
         public ICommand RefreshTokenCommand { get; }
@@ -144,6 +146,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
             DeleteBotCommand = new AsyncRelayCommand(DeleteExistingBot, CanEditBotDetails);
 
             ValidateChannelCommand = new AsyncRelayCommand(ValidateChannel, CanValidateChannel);
+            EditChannelCommand = new AsyncRelayCommand(EditChannel, CanEditChannel);
+            DeleteChannelCommand = new AsyncRelayCommand(DeleteExistingChannel, CanEditChannel);
 
             GetTokenCommand = new AsyncRelayCommand(GetOAuthToken, CanGetOAuthToken);
             RefreshTokenCommand = new AsyncRelayCommand(RefreshOAuthToken, CanRefreshToken);
@@ -166,19 +170,16 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             SetProperty(ref m_selectedBot, ConfiguredBots.FirstOrDefault(), nameof(SelectedBot));
 
+            var channelData = await ChannelService.GetAllTwitchChannels();
+            foreach (var channel in channelData)
+                TwitchChannels.Add(new BasicChannel(channel));
+
             if (SelectedBot != null)
             {
-                await GetChannelHistory(SelectedBot.Id);
                 SelectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == SelectedBot.ChannelId);
                 m_channel = SelectedChannel.DisplayName;
 
                 TokenStatus = await GetBotTokenStatus();
-            }
-            else
-            {
-                var channelData = await ChannelService.GetAllTwitchChannels();
-                foreach (var channel in channelData)
-                    TwitchChannels.Add(new BasicChannel(channel));
             }
         }
 
@@ -195,6 +196,18 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 : null;
         }
         
+        private async Task RefreshChannelData(BasicBot selected = null)
+        {
+            TwitchChannels.Clear();
+
+            var channelData = await ChannelService.GetAllTwitchChannels();
+            foreach (var channel in channelData)
+                TwitchChannels.Add(new BasicChannel(channel));
+
+            SelectedChannel = selected != null
+                ? TwitchChannels.FirstOrDefault(c => c.Id == selected.ChannelId)
+                : TwitchChannels.LastOrDefault();
+        }
 
         private async Task GetChannelHistory(long Id)
         {
@@ -205,7 +218,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 {
                     Id = history.ChannelId,
 
-                    UserName = history.ChannelUsername,
+                    Username = history.ChannelUsername,
                     DisplayName = history.ChannelName
                 };
 
@@ -414,14 +427,56 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 }
             }
         }
+
+        private bool CanEditChannel()
+        {
+            return SelectedChannel != null;
+        }
+        private async Task EditChannel()
+        {
+            var token = TokenStatus == OAuthTokenStatus.Valid ? SelectedBot.OAuthToken : string.Empty;
+
+            var windowModal = new ChannelDetailsWindow
+            {
+                DataContext = new ChannelDetailsViewModel(SelectedChannel, token)
+            };
+
+            if (windowModal.ShowDialog() == true)
+            {
+                var data = windowModal.DataContext as ChannelDetailsViewModel;
+                var result = await ChannelService.CreateOrUpdateChannel(SelectedChannel.Id, data.Username, data.DisplayName);
+
+                if (result == null)
+                {
+                    MessageBox.Show("Oops...");
+                    return;
+                }
+
+                await RefreshChannelData(SelectedBot);
+            }
+        }
+
+        private async Task DeleteExistingChannel()
+        {
+            var dialog = MessageBox.Show($"Remove {SelectedChannel.DisplayName} from saved list?", $"Remove Channel - {Title}", MessageBoxButton.YesNo);
+            if (dialog == MessageBoxResult.Yes)
+            {
+                if (await ChannelService.DeleteChannel(SelectedChannel.Id))
+                {
+                    await RefreshChannelData();
+                    MessageBox.Show("DELETED");
+                }
+            }
+        }
         #endregion
 
+        #region TwitchLib Client Methods
         private bool CanConnect()
         {
             if (SelectedBot == null || SelectedChannel == null)
                 return false;
 
-            if (SelectedBot.Username.Equals(SelectedChannel.UserName))
+            if (SelectedBot.Username.Equals(SelectedChannel.Username))
                 return false;
 
             return IsDisconnected && TokenStatus == OAuthTokenStatus.Valid;
@@ -446,7 +501,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             WebSocketClient customClient = new(clientOptions);
             _client = new TwitchClient(customClient);
-            _client.Initialize(credentials, SelectedChannel.UserName);
+            _client.Initialize(credentials, SelectedChannel.Username);
 
             _client.OnConnected += OnBotConnected;
             _client.OnDisconnected += OnBotDisconnected;
@@ -465,8 +520,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
         {
             _client.Disconnect();
         }
+        #endregion
 
-        private async void OnBotConnected(object sender, OnConnectedArgs e)
+        private void OnBotConnected(object sender, OnConnectedArgs e)
         {
             Title = $"[CONNECTED] {Title}";
             IsDisconnected = false;
@@ -478,7 +534,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             };
             _uiContext.Send(x => Messages.Add(msg), null);
 
-            var result = await BotService.CreateOrUpdateBot(
+            var result = BotService.CreateOrUpdateBot(
                 SelectedBot.Id, 
                 SelectedBot.Username, 
                 SelectedBot.DisplayName, 
@@ -505,7 +561,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             _client.SendMessage(e.Channel, "/me " + BotCommandService.GetConnectionMessage());
         }
 
-        private void OnReceivedMessage(object sender, OnMessageReceivedArgs e) 
+        private async void OnReceivedMessage(object sender, OnMessageReceivedArgs e) 
         {
             var msg = new Model.ChatMessage
             {
@@ -529,15 +585,38 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
             if (parsedMessage.Contains("!shoutout"))
             {
-                //TODO: Shoutout command
+                var args = parsedMessage.Split(' ');
+                if (args.Length < 2)
+                {
+                    _client.SendReply(channel, e.ChatMessage.Id, "There's nobody to shout out...");
+                    return;
+                }
+
+                var data = await WolfAPIService.GetShoutOutDetails(ApiSettings.ClientId, SelectedBot.OAuthToken, args[1]);
+
+                var streamTime = "";
+                if (data.StreamDateTime.HasValue)
+                {
+                    var streamDuration = DateTime.UtcNow - data.StreamDateTime.Value;
+
+                    streamTime = streamDuration.TotalHours > 0
+                        ? $"{Math.Floor(streamDuration.TotalHours)} {(streamDuration.TotalHours == 1 ? "hour" : "hours")}"
+                        : $"{Math.Floor(streamDuration.TotalMinutes)} {(streamDuration.TotalMinutes == 1 ? "minute" : "minutes")}";
+                }
+
+                var message = data.IsLive
+                    ? $"Check out {data.Link} ({data.Name}) who...has been streaming {data.Game} for {streamTime}!"
+                    : $"Check out {data.Link} ({data.Name}) who was previously streaming {data.Game}!";
+
+                _client.SendMessage(channel, $"/announce {message}");
                 return;
             }
 
             switch (parsedMessage)
             {
                 case "!heaven":
-                    _client.SendMessage(channel, "/me Uses Final Heaven");
-                    Thread.Sleep(4200);
+                    _client.SendMessage(channel, "Uses Final Heaven");
+                    await Task.Delay(4200);
                     _client.SendMessage(channel, $"Critical direct hit! {msg.DisplayName} takes 731858 damage.");
                     break;
                 case "!uptime":

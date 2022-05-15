@@ -70,9 +70,11 @@
                     </ComboBox>
 
                     <Button Width="50" Content="Validate" Command="{Binding ValidateChannelCommand}"
-                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True"/>
-                    <Button Width="50" Content="Edit" />
-                    <Button Width="50" Content="Remove" />
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                    <Button Width="50" Content="Edit" Command="{Binding EditChannelCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                    <Button Width="50" Content="Remove" Command="{Binding DeleteChannelCommand}"
+                            input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">

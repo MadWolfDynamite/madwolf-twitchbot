@@ -117,7 +117,7 @@ namespace MadWolfTwitchBot.Services
             throw new Exception(content);
         }
 
-        public static async Task<Channel> GetChannelDetails(string client, string token, string channel)
+        public static async Task<Models.Channel> GetChannelDetails(string client, string token, string channel)
         {
             string apiPath = GenerateApiPath($"account/{channel}", client, token);
 
@@ -136,7 +136,7 @@ namespace MadWolfTwitchBot.Services
             if (selected == null)
                 return null;
 
-            var result = new Channel()
+            var result = new Models.Channel()
             {
                 Id = 0,
 
@@ -145,6 +145,62 @@ namespace MadWolfTwitchBot.Services
             };
 
             return result;
+        }
+
+        public static async Task<ShoutOut> GetShoutOutDetails(string client, string token, string user)
+        {
+            var resource = new ShoutOut();
+
+            string apiPath = GenerateApiPath($"account/{user}", client, token);
+
+            var response = await _client.GetAsync(apiPath);
+            var stream = await response.Content.ReadAsStreamAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await StreamSerializer.StreamToStringAsync(stream);
+                throw new Exception(content);
+            }
+
+            var users = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Account>>(stream);
+            var userData = users.FirstOrDefault(u => u.Login.Equals(user));
+
+            resource.Name = userData.Display_Name;
+            resource.Link = new Uri($"https://www.twitch.tv/{userData.Login}");
+
+            apiPath = GenerateApiPath($"channel/{userData.Login}", client, token);
+
+            response = await _client.GetAsync(apiPath);
+            stream = await response.Content.ReadAsStreamAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await StreamSerializer.StreamToStringAsync(stream);
+                throw new Exception(content);
+            }
+
+            var channels = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Models.Twitch.Channel>>(stream);
+            var channelData = channels.FirstOrDefault(c => c.Id.Equals(userData.Id));
+
+            resource.IsLive = channelData.Is_Live;
+            resource.StreamDateTime = string.IsNullOrEmpty(channelData.Started_At) ? null : DateTime.Parse(channelData.Started_At);
+
+            apiPath = GenerateApiPath($"game/{channelData.Game_Id}", client, token);
+
+            response = await _client.GetAsync(apiPath);
+            stream = await response.Content.ReadAsStreamAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var games = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Game>>(stream);
+                var gameData = games.FirstOrDefault(g => g.Id.Equals(channelData.Game_Id));
+
+                resource.Game = gameData.Name;
+            }
+            else
+                resource.Game = string.Empty;
+
+            return resource;
         }
 
         private static string GenerateApiPath(string path, string client, string token)
