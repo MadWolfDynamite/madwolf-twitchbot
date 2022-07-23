@@ -31,7 +31,7 @@ VALUES (@Username, @DisplayName)";
             return await Save(channelData, query);
         }
 
-        public async Task<Channel> SaveChannelDetails(long id, string username, string displayName)
+        public async Task<Channel> UpdateChannel(long id, string username, string displayName)
         {
             var channelData = new Channel()
             {

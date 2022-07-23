@@ -7,7 +7,7 @@
         xmlns:model="clr-namespace:MadWolfTwitchBot.Client.Model"
         xmlns:input="clr-namespace:Microsoft.Toolkit.Mvvm.Wpf.Input"
         mc:Ignorable="d"
-        Title="{Binding Title}" Height="450" Width="800">
+        Title="{Binding Title}" Height="500" Width="800">
     <Window.DataContext>
         <local:MainWindowViewModel />
     </Window.DataContext>
@@ -25,6 +25,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="75" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="30" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -44,7 +45,7 @@
 
                 <TextBlock Text="Username" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <ComboBox Width="160" ItemsSource="{Binding ConfiguredBots}" SelectedItem="{Binding SelectedBot}" >
+                    <ComboBox Width="160" ItemsSource="{Binding AvailableBots}" SelectedItem="{Binding SelectedBot}" >
                         <ComboBox.ItemTemplate>
                             <DataTemplate DataType="{x:Type model:BasicBot}">
                                 <TextBlock Text="{Binding DisplayName}" />
@@ -94,66 +95,80 @@
         <StackPanel Grid.Column="1" VerticalAlignment="Center">
             <Button Margin="0 1" Content="Connect" Command="{Binding ConnectCommand}"
                     input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
-            
+
             <Button Margin="0 1" Content="Disconnect" Command="{Binding DisconnectCommand}"
                     input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
         </StackPanel>
 
         <GroupBox Grid.Row="1" Header="Bot Commands">
-            <!-- <ListView ItemsSource="{Binding ChatCommands}">
-                <ListView.View>
-                    <GridView>
-                        <GridViewColumn Header="Command" Width="Auto">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Width="75" 
-                                             HorizontalAlignment="Center" 
-                                             Text="{Binding Command}" />
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-
-                        <GridViewColumn Header="Message" Width="Auto">
-                            <GridViewColumn.CellTemplate>
-                                <DataTemplate>
-                                    <TextBox Width="425" AcceptsReturn="True" TextWrapping="Wrap" Text="{Binding Message}" />
-                                </DataTemplate>
-                            </GridViewColumn.CellTemplate>
-                        </GridViewColumn>
-                    </GridView>
-                </ListView.View>
-            </ListView> -->
-            <DataGrid AutoGenerateColumns="False" 
+            <TabControl>
+                <TabItem Header="Global">
+                    <DataGrid AutoGenerateColumns="False" 
                       IsReadOnly="True"
                       CanUserSortColumns="False"
-                      ItemsSource="{Binding ChatCommands}">
-                <DataGrid.Columns>
-                    <DataGridTemplateColumn>
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button Content="..." />
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+                      ItemsSource="{Binding GlobalCommands}">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="..." 
+                                                Command="{Binding DataContext.EditCommandCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" 
+                                                CommandParameter="{Binding}"
+                                                input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
-                    <DataGridTextColumn Width="75" Header="Command" Binding="{Binding Command}" />
+                            <DataGridTextColumn Width="75" Header="Command" Binding="{Binding Name}" />
 
-                    <DataGridTextColumn Width="*" Header="Output Message" Binding="{Binding Message}">
-                        <DataGridTextColumn.ElementStyle>
-                            <Style>
-                                <Setter Property="TextBlock.TextWrapping" Value="Wrap" />
-                            </Style>
-                        </DataGridTextColumn.ElementStyle>
-                    </DataGridTextColumn>
-                </DataGrid.Columns>
-            </DataGrid>
+                            <DataGridTextColumn Width="*" Header="Output Message" Binding="{Binding ResponseMessage}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style>
+                                        <Setter Property="TextBlock.TextWrapping" Value="Wrap" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+                
+                <TabItem Header="Local">
+                    <DataGrid AutoGenerateColumns="False" 
+                      IsReadOnly="True"
+                      CanUserSortColumns="False"
+                      ItemsSource="{Binding LocalCommands}">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="..."
+                                                Command="{Binding DataContext.EditCommandCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" 
+                                                CommandParameter="{Binding}"
+                                                input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTextColumn Width="75" Header="Command" Binding="{Binding Name}" />
+
+                            <DataGridTextColumn Width="*" Header="Output Message" Binding="{Binding ResponseMessage}">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style>
+                                        <Setter Property="TextBlock.TextWrapping" Value="Wrap" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+            </TabControl>
         </GroupBox>
-        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-            <Button Margin="0 0.5 1.5 0.5" Width="25" Content="+" Command="{Binding AddCommand}" />
-            <Button Margin="1.5 0.5 0 0.5" Width="25" Content="-" Command="{Binding RemoveCommand}" />
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
+            <Button Margin="0 1" Width="125" Content="Create Command" Command="{Binding AddCommandCommand}" />
+            <Button Margin="0 1" Width="125" Content="Delete Command(s)" Command="{Binding RemoveCommand}" />
         </StackPanel>
 
-        <GroupBox Grid.Row="2" Grid.ColumnSpan="2" Header="Chat Log">
+        <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Chat Log">
             <ListView FontFamily="Consolas" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Messages}">
                 <ListView.ItemTemplate>
                     <DataTemplate DataType="{x:Type model:ChatMessage}">

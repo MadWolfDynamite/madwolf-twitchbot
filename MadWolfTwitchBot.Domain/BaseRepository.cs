@@ -17,13 +17,13 @@ namespace MadWolfTwitchBot.Domain
             m_dbConnection = new SqliteConnection($"Data Source={dbPath}");
         }
 
-        public async virtual Task<IEnumerable<T>> ListAll<T>() where T : class, new()
+        public async Task<IEnumerable<T>> ListAll<T>() where T : class, new()
         {
             var sql = $"SELECT * FROM {m_tableName}";
             return await ExecuteReaderAsync<T>(sql);
         }
 
-        public async virtual Task<T> GetById<T>(long id) where T : class, new()
+        public async Task<T> GetById<T>(long id) where T : class, new()
         {
             var sql = $"SELECT * FROM {m_tableName} WHERE id = @Id";
             var param = new Dictionary<string, object>()

@@ -1,7 +1,4 @@
-﻿using MadWolfTwitchBot.Models;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace MadWolfTwitchBot.Domain
@@ -13,15 +10,15 @@ namespace MadWolfTwitchBot.Domain
             m_tableName = "bot_history";
         }
 
-        public async Task<IEnumerable<BotHistory>> GetBotHistory(long id)
+        public async Task<IEnumerable<T>> GetByBotId<T>(long id) where T : class, new()
         {
-            var sql = "SELECT * FROM vw_botHistory WHERE bot_id = @BotId";
+            var sql = $"SELECT * FROM {m_tableName} WHERE bot_id = @BotId";
             var param = new Dictionary<string, object>()
             {
                 {"@BotId", id},
             };
 
-            return await ExecuteReaderAsync<BotHistory>(sql, param);
+            return await ExecuteReaderAsync<T>(sql, param);
         }
     }
 }

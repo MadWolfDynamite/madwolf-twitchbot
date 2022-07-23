@@ -9,11 +9,11 @@ namespace MadWolfTwitchBot.Services
 {
     public static class HistoryService
     {
-        private static readonly HistoryRepository m_repository = new HistoryRepository(@"D:\DevStuff\bottest.db");
+        private static readonly HistoryRepository m_repository = new(@"D:\DevStuff\bottest.db");
 
         public static async Task<IEnumerable<BotHistory>> GetChannelHistoryForBot(long id)
         {
-            return await m_repository.GetBotHistory(id);
+            return await m_repository.GetByBotId<BotHistory>(id);
         }
     }
 }

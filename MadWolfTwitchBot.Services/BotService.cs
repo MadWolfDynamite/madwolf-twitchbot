@@ -41,7 +41,7 @@ namespace MadWolfTwitchBot.Services
 
             var result = isNew 
                 ? await m_repository.CreateNewBot(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId) 
-                : await m_repository.SaveBotDetails(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId);
+                : await m_repository.UpdateBot(data.Id, data.Username, data.DisplayName, data.OAuthToken, data.RefreshToken, data.TokenTimestamp, data.ChannelId);
 
             return result;
         }

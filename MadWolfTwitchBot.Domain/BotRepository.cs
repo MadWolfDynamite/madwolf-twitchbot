@@ -37,7 +37,7 @@ VALUES (@Username, @DisplayName, @Token, @Refresh, @Timestamp, @Channel)";
             return await Save(botData, query);
         }
 
-        public async Task<Bot> SaveBotDetails(long id, string username, string displayName, string token, string refresh, DateTime? timestamp, long? channel)
+        public async Task<Bot> UpdateBot(long id, string username, string displayName, string token, string refresh, DateTime? timestamp, long? channel)
         {
             var botData = new Bot()
             {

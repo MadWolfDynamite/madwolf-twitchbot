@@ -28,8 +28,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
     public class MainWindowViewModel : ObservableObject
     {
         private TwitchClient _client;
-        private readonly BotConfiguration _config = new();
-
         private readonly SynchronizationContext _uiContext;
 
         private string m_windowTitle;
@@ -55,7 +53,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         private readonly Dictionary<string, string> _commands;
 
-        public ObservableCollection<BasicBot> ConfiguredBots { get; private set; } = new ObservableCollection<BasicBot>();
+        public ObservableCollection<BasicBot> AvailableBots { get; private set; } = new ObservableCollection<BasicBot>();
 
         private BasicBot m_selectedBot;
         public BasicBot SelectedBot
@@ -67,7 +65,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
                 if (m_selectedBot != null)
                 {
-                    GetChannelHistory(m_selectedBot.Id);
+                    RefreshChannelData(m_selectedBot);
+
+                    GetLocalBotCommands(m_selectedBot.Id);
                     UpdateBotTokenStatus(); 
                 }
                 else { TokenStatus = null; }
@@ -97,6 +97,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
         }
 
+        public ObservableCollection<BasicCommand> GlobalCommands { get; set; } = new ObservableCollection<BasicCommand>();
+        public ObservableCollection<BasicCommand> LocalCommands { get; set; } = new ObservableCollection<BasicCommand>();
+
         public ObservableCollection<BotCommand> ChatCommands { get; set; } = new ObservableCollection<BotCommand>();
 
         public ObservableCollection<Model.ChatMessage> Messages { get; set; } = new ObservableCollection<Model.ChatMessage>();
@@ -109,6 +112,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public ICommand ValidateChannelCommand { get; }
         public ICommand EditChannelCommand { get; }
         public ICommand DeleteChannelCommand { get; }
+
+        public ICommand AddCommandCommand { get; }
+        public ICommand EditCommandCommand { get; }
 
         public ICommand GetTokenCommand { get; }
         public ICommand RefreshTokenCommand { get; }
@@ -126,7 +132,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
             WolfAPIService.SetApiEndpoint(ApiSettings.Endpoint);
             Title = "MadWolf Twitch Bot Client";
 
-            _config.SetConfig("D:/TestConfig.json");
             _uiContext = SynchronizationContext.Current;
 
             _commands = BotCommandService.LoadCommands("D:/Commands.json");
@@ -149,6 +154,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
             EditChannelCommand = new AsyncRelayCommand(EditChannel, CanEditChannel);
             DeleteChannelCommand = new AsyncRelayCommand(DeleteExistingChannel, CanEditChannel);
 
+            AddCommandCommand = new AsyncRelayCommand(AddNewCommand);
+            EditCommandCommand = new AsyncRelayCommand<BasicCommand>(EditCommand);
+
             GetTokenCommand = new AsyncRelayCommand(GetOAuthToken, CanGetOAuthToken);
             RefreshTokenCommand = new AsyncRelayCommand(RefreshOAuthToken, CanRefreshToken);
 
@@ -166,34 +174,40 @@ namespace MadWolfTwitchBot.Client.ViewModel
         {
             var botData = await BotService.GetAllConfiguredBots();
             foreach (var bot in botData)
-                ConfiguredBots.Add(new BasicBot(bot));
+                AvailableBots.Add(new BasicBot(bot));
 
-            SetProperty(ref m_selectedBot, ConfiguredBots.FirstOrDefault(), nameof(SelectedBot));
+            SetProperty(ref m_selectedBot, AvailableBots.FirstOrDefault(), nameof(SelectedBot));
 
             var channelData = await ChannelService.GetAllTwitchChannels();
             foreach (var channel in channelData)
                 TwitchChannels.Add(new BasicChannel(channel));
+
+            await GetGlobalBotCommands();
 
             if (SelectedBot != null)
             {
                 SelectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == SelectedBot.ChannelId);
                 m_channel = SelectedChannel.DisplayName;
 
+                await GetLocalBotCommands(SelectedBot.Id);
                 TokenStatus = await GetBotTokenStatus();
             }
         }
 
         private async Task RefreshBotData(BasicBot selected = null)
         {
-            ConfiguredBots.Clear();
+            AvailableBots.Clear();
 
             var botData = await BotService.GetAllConfiguredBots();
             foreach (var bot in botData)
-                ConfiguredBots.Add(new BasicBot(bot));
+                AvailableBots.Add(new BasicBot(bot));
 
             SelectedBot = selected != null 
-                ? ConfiguredBots.FirstOrDefault(b => b.Username.Equals(selected.Username))
+                ? AvailableBots.FirstOrDefault(b => b.Username.Equals(selected.Username))
                 : null;
+
+            if (SelectedBot != null)
+                await GetLocalBotCommands(SelectedBot.Id);
         }
         
         private async Task RefreshChannelData(BasicBot selected = null)
@@ -235,6 +249,24 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
 
             SelectedChannel = TwitchChannels.FirstOrDefault(c => c.Id == SelectedBot.ChannelId);
+        }
+
+        private async Task GetGlobalBotCommands()
+        {
+            GlobalCommands.Clear();
+
+            var commandData = await CommandService.GetAllBotCommands();
+            foreach (var command in commandData.Where(c => c.BotId == null))
+                GlobalCommands.Add(new BasicCommand(command));
+        }
+
+        private async Task GetLocalBotCommands(long id)
+        {
+            LocalCommands.Clear();
+
+            var commandData = await CommandService.GetCommandsForBot(id);
+            foreach (var command in commandData)
+                LocalCommands.Add(new BasicCommand(command));
         }
         #endregion
 
@@ -401,7 +433,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         private async Task ValidateChannel()
         {
-            var data = await WolfAPIService.GetChannelDetails(ApiSettings.ClientId, SelectedBot.OAuthToken, ChannelSearch);
+            var data = await WolfAPIService.GetChannelDetails(ApiSettings.ClientId, SelectedBot.OAuthToken, ChannelSearch.ToLower());
             if (data == null)
                 return;
 
@@ -470,6 +502,65 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         #endregion
 
+        private async Task AddNewCommand()
+        {
+            var windowModal = new CommandDetailsWindow
+            {
+                DataContext = new CommandDetailsViewModel()
+            };
+
+            if (windowModal.ShowDialog() == true)
+            {
+                var data = windowModal.DataContext as CommandDetailsViewModel;
+                var result = await CommandService.CreateOrUpdateCommand(
+                    0, 
+                    data.Name, 
+                    data.ResponseMessage, 
+                    data.IsLocalCommand ? data.SelectedBot.Id : null);
+
+                if (result == null)
+                {
+                    MessageBox.Show("Oops...");
+                    return;
+                }
+
+                await GetGlobalBotCommands();
+                await GetLocalBotCommands(SelectedBot.Id);
+            }
+        }
+
+        private async Task EditCommand(BasicCommand command)
+        {
+            var commandBot = AvailableBots.FirstOrDefault(b => b.Id == command.BotId);
+
+            var windowModal = new CommandDetailsWindow
+            {
+                DataContext = new CommandDetailsViewModel(
+                    command.Name, 
+                    command.ResponseMessage, 
+                    commandBot != null ? commandBot.Id : 0)
+            };
+
+            if (windowModal.ShowDialog() == true)
+            {
+                var data = windowModal.DataContext as CommandDetailsViewModel;
+                var result = await CommandService.CreateOrUpdateCommand(
+                    command.Id, 
+                    data.Name, 
+                    data.ResponseMessage, 
+                    data.IsLocalCommand ? data.SelectedBot.Id : null);
+
+                if (result == null)
+                {
+                    MessageBox.Show("Oops...");
+                    return;
+                }
+
+                await GetGlobalBotCommands();
+                await GetLocalBotCommands(SelectedBot.Id);
+            }
+        }
+
         #region TwitchLib Client Methods
         private bool CanConnect()
         {
@@ -522,6 +613,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         #endregion
 
+        #region TwitchLib Client Events
         private void OnBotConnected(object sender, OnConnectedArgs e)
         {
             Title = $"[CONNECTED] {Title}";
@@ -574,52 +666,67 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 return;
 
             var channel = _client.JoinedChannels.FirstOrDefault();
-            var parsedMessage = msg.Message.Trim().ToLower();
+            var args = msg.Message.Trim().Split(' ');
 
-            if (_commands.ContainsKey(parsedMessage))
-            {
-                var botMessage = _commands[parsedMessage].Replace("{name}", msg.DisplayName);
-                _client.SendMessage(channel, botMessage);
-
+            if (!args[0].StartsWith("!"))
                 return;
-            }
-            if (parsedMessage.Contains("!shoutout"))
+
+            var command = args[0].ToLower().Replace("!", "");
+
+            var selectedCommand = GlobalCommands.FirstOrDefault(c => command.Equals(c.Name));
+            if (selectedCommand != null)
             {
-                var args = parsedMessage.Split(' ');
-                if (args.Length < 2)
-                {
-                    _client.SendReply(channel, e.ChatMessage.Id, "There's nobody to shout out...");
-                    return;
-                }
+                //TODO: Variable handling (e.g. {name} display's username)
+                var message = selectedCommand.ResponseMessage;
 
-                var data = await WolfAPIService.GetShoutOutDetails(ApiSettings.ClientId, SelectedBot.OAuthToken, args[1]);
-
-                var streamTime = "";
-                if (data.StreamDateTime.HasValue)
-                {
-                    var streamDuration = DateTime.UtcNow - data.StreamDateTime.Value;
-
-                    streamTime = streamDuration.TotalHours > 0
-                        ? $"{Math.Floor(streamDuration.TotalHours)} {(streamDuration.TotalHours == 1 ? "hour" : "hours")}"
-                        : $"{Math.Floor(streamDuration.TotalMinutes)} {(streamDuration.TotalMinutes == 1 ? "minute" : "minutes")}";
-                }
-
-                var message = data.IsLive
-                    ? $"Check out {data.Link} ({data.Name}) who...has been streaming {data.Game} for {streamTime}!"
-                    : $"Check out {data.Link} ({data.Name}) who was previously streaming {data.Game}!";
-
-                _client.SendMessage(channel, $"/announce {message}");
+                _client.SendMessage(channel, message);
                 return;
             }
 
-            switch (parsedMessage)
+            selectedCommand = LocalCommands.FirstOrDefault(c => command.Equals(c.Name));
+            if (selectedCommand != null)
             {
-                case "!heaven":
-                    _client.SendMessage(channel, "Uses Final Heaven");
-                    await Task.Delay(4200);
-                    _client.SendMessage(channel, $"Critical direct hit! {msg.DisplayName} takes 731858 damage.");
+                //TODO: Variable handling (e.g. {name} display's username)
+                var message = selectedCommand.ResponseMessage;
+
+                _client.SendMessage(channel, message);
+                return;
+            }
+
+            //Special Easter Egg Command
+            if (command.Equals("lb") && SelectedBot.Username.Equals("windupkagura"))
+            {
+                _client.SendMessage(channel, "Uses Final Heaven");
+                await Task.Delay(4200);
+                _client.SendMessage(channel, $"Critical direct hit! {msg.DisplayName} takes 731858 damage.");
+
+                return;
+            }
+
+            //Built in commands
+            switch (command)
+            {
+                case "shoutout":
+                case "so":
+                case "shill":
+                case "plug":
+                    if (args.Length < 2)
+                    {
+                        _client.SendReply(channel, e.ChatMessage.Id, "There's nobody to shout out...");
+                        return;
+                    }
+
+                    if (args.Contains(SelectedChannel.Username))
+                    {
+                        _client.SendMessage(channel, $"/me is visibly vexed at {e.ChatMessage.DisplayName}");
+                        return;
+                    }
+
+                    for (int i = 1; i < args.Length; i++)
+                        _client.SendMessage(channel, await CommandService.GenerateShoutoutMessage(ApiSettings.ClientId, SelectedBot.OAuthToken, args[i]));
+
                     break;
-                case "!uptime":
+                case "uptime":
                     break;
                 case "!hello":
                 case "!hi":
@@ -632,8 +739,10 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 default:
                     _uiContext.Send(x => Messages.Add(msg), null);
                     break;
+
             }
         }
+        #endregion
 
         private bool CanAddChatCommand()
         {
