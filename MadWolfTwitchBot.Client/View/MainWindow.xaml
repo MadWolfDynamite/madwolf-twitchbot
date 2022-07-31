@@ -164,8 +164,8 @@
             </TabControl>
         </GroupBox>
         <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Margin="0 1" Width="125" Content="Create Command" Command="{Binding AddCommandCommand}" />
-            <Button Margin="0 1" Width="125" Content="Delete Command(s)" Command="{Binding RemoveCommand}" />
+            <Button Margin="1 0" Width="125" Content="Create Command" Command="{Binding AddCommandCommand}" />
+            <Button Margin="1 0" Width="125" Content="Delete Command(s)" Command="{Binding DeleteCommandCommand}" />
         </StackPanel>
 
         <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Chat Log">

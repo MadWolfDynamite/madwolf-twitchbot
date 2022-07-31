@@ -46,6 +46,11 @@ namespace MadWolfTwitchBot.Services
             return result;
         }
 
+        public static async Task<bool> DeleteCommand(long id)
+        {
+            return await m_repository.DeleteById(id);
+        }
+
         public static async Task<string> GenerateShoutoutMessage(string client, string token, string user)
         {
             var data = await WolfAPIService.GetShoutOutDetails(client, token, user);

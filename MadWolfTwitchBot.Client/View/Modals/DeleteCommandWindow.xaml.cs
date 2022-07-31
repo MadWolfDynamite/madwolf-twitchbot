@@ -15,11 +15,11 @@ using System.Windows.Shapes;
 namespace MadWolfTwitchBot.Client.View.Modals
 {
     /// <summary>
-    /// Interaction logic for CommandDetailsWindow.xaml
+    /// Interaction logic for DeleteCommandWindow.xaml
     /// </summary>
-    public partial class CommandDetailsWindow : Window
+    public partial class DeleteCommandWindow : Window
     {
-        public CommandDetailsWindow()
+        public DeleteCommandWindow()
         {
             InitializeComponent();
             Owner = Application.Current.MainWindow;

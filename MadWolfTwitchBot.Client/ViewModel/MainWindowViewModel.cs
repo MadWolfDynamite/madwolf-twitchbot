@@ -27,35 +27,43 @@ namespace MadWolfTwitchBot.Client.ViewModel
 {
     public class MainWindowViewModel : ObservableObject
     {
+        #region Private Members
         private TwitchClient _client;
         private readonly SynchronizationContext _uiContext;
 
         private string m_windowTitle;
+
+        private bool m_disconnected = true;
+
+        private OAuthTokenStatus? m_tokenStatus;
+
+        private BasicBot m_selectedBot;
+        private BasicChannel m_selectedChannel;
+
+        private string m_channel;
+        #endregion
+
+        #region Properties
         public string Title
         {
             get => m_windowTitle;
             set => SetProperty(ref m_windowTitle, value);
         }
-
-        private bool m_disconnected = true;
+        
         public bool IsDisconnected 
         {
             get => m_disconnected;
             set => SetProperty(ref m_disconnected, value);
         }
 
-        private OAuthTokenStatus? m_tokenStatus;
         public OAuthTokenStatus? TokenStatus
         {
             get => m_tokenStatus;
             set => SetProperty(ref m_tokenStatus, value);
         }
 
-        private readonly Dictionary<string, string> _commands;
-
         public ObservableCollection<BasicBot> AvailableBots { get; private set; } = new ObservableCollection<BasicBot>();
 
-        private BasicBot m_selectedBot;
         public BasicBot SelectedBot
         {
             get => m_selectedBot;
@@ -76,7 +84,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public ObservableCollection<BasicChannel> TwitchChannels { get; private set; } = new ObservableCollection<BasicChannel>();
 
-        private BasicChannel m_selectedChannel;
         public BasicChannel SelectedChannel
         {
             get => m_selectedChannel;
@@ -86,7 +93,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
         }
 
-        private string m_channel;
         public string ChannelSearch
         {
             get => m_channel;
@@ -103,6 +109,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public ObservableCollection<BotCommand> ChatCommands { get; set; } = new ObservableCollection<BotCommand>();
 
         public ObservableCollection<Model.ChatMessage> Messages { get; set; } = new ObservableCollection<Model.ChatMessage>();
+        #endregion
 
         #region Commands
         public ICommand AddBotCommand { get; }
@@ -115,15 +122,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public ICommand AddCommandCommand { get; }
         public ICommand EditCommandCommand { get; }
+        public ICommand DeleteCommandCommand { get; }
 
         public ICommand GetTokenCommand { get; }
         public ICommand RefreshTokenCommand { get; }
 
         public ICommand ConnectCommand { get;}
         public ICommand DisconnectCommand { get; }
-
-        public ICommand AddCommand { get; }
-        public ICommand RemoveCommand { get; }
         #endregion
 
         #region Ctor
@@ -133,18 +138,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
             Title = "MadWolf Twitch Bot Client";
 
             _uiContext = SynchronizationContext.Current;
-
-            _commands = BotCommandService.LoadCommands("D:/Commands.json");
-            foreach (var command in _commands)
-            {
-                var data = new BotCommand
-                {
-                    Command = command.Key,
-                    Message = command.Value
-                };
-
-                ChatCommands.Add(data);
-            }
 
             AddBotCommand = new AsyncRelayCommand(AddNewBot);
             EditBotCommand = new AsyncRelayCommand(EditBotDetails, CanEditBotDetails);
@@ -156,14 +149,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             AddCommandCommand = new AsyncRelayCommand(AddNewCommand);
             EditCommandCommand = new AsyncRelayCommand<BasicCommand>(EditCommand);
+            DeleteCommandCommand = new AsyncRelayCommand(DeleteCommand, CanDeleteCommand);
 
             GetTokenCommand = new AsyncRelayCommand(GetOAuthToken, CanGetOAuthToken);
             RefreshTokenCommand = new AsyncRelayCommand(RefreshOAuthToken, CanRefreshToken);
 
             ConnectCommand = new RelayCommand(Connect, CanConnect);
             DisconnectCommand = new RelayCommand(Disconnect, CanDisconnect);
-
-            AddCommand = new RelayCommand(AddChatCommand, CanAddChatCommand);
 
             GetDbData();
         }
@@ -561,6 +553,46 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
         }
 
+        private bool CanDeleteCommand()
+        {
+            return GlobalCommands.Count + LocalCommands.Count > 0;
+        }
+        private async Task DeleteCommand()
+        {
+            var commandData = await CommandService.GetAllBotCommands();
+            var commands = new List<BasicCommand>();
+
+            foreach (var command in commandData.Where(c => c.BotId == null || c.BotId == SelectedBot.Id))
+                commands.Add(new BasicCommand(command));
+
+            var windowModal = new DeleteCommandWindow
+            {
+                DataContext = new DeleteCommandViewModel(commands)
+            };
+
+            if (windowModal.ShowDialog() == true)
+            {
+                var data = windowModal.DataContext as DeleteCommandViewModel;
+                var commandsToDelete = data.ChatCommands.Where(c => c.IsSelected);
+
+                var successfulDelete = 0;
+                var failedDelete = 0;
+
+                foreach (var command in commandsToDelete) 
+                {
+                    var result = await CommandService.DeleteCommand(command.Data.Id);
+
+                    if (result)
+                        successfulDelete++;
+                    else
+                        failedDelete++;
+                }
+
+                await GetGlobalBotCommands();
+                await GetLocalBotCommands(SelectedBot.Id);
+            }
+        }
+
         #region TwitchLib Client Methods
         private bool CanConnect()
         {
@@ -743,15 +775,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
             }
         }
         #endregion
-
-        private bool CanAddChatCommand()
-        {
-            return ChatCommands.Count == _commands.Count;
-        }
-        private void AddChatCommand()
-        {
-            ChatCommands.Add(new BotCommand());
-        }
     }
 
     class TokenStatusToUriConverter : IValueConverter
