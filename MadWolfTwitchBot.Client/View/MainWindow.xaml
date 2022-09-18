@@ -14,6 +14,8 @@
 
     <Window.Resources>
         <local:TokenStatusToUriConverter x:Key="TokenStatusConverter" />
+        <local:ConnectionStatusToStringConverter x:Key="ConnectionStatusConverter" />
+        <local:ApplicationStatusToVisiblityCoverter x:Key="AppStatusConverter" />
     </Window.Resources>
 
     <Grid>
@@ -24,9 +26,13 @@
 
         <Grid.RowDefinitions>
             <RowDefinition Height="75" />
+            
             <RowDefinition Height="*" />
             <RowDefinition Height="30" />
+            
             <RowDefinition Height="*" />
+
+            <RowDefinition Height="20" />
         </Grid.RowDefinitions>
 
         <GroupBox Header="Bot Details" IsEnabled="{Binding IsDisconnected}">
@@ -191,5 +197,39 @@
                 </ListView.ItemTemplate>
             </ListView>
         </GroupBox>
+
+        <StatusBar Grid.Row="4" Grid.ColumnSpan="2" FontSize="10">
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto"/>
+                            
+                            <ColumnDefinition Width="*" />
+
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="75"/>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+
+            <StatusBarItem>
+                <TextBlock Text="{Binding AppState.Message}"
+                           Foreground="{Binding AppState.ColourHex}" />
+            </StatusBarItem>
+
+            <Separator Grid.Column="1" Visibility="{Binding AppState.Message, Converter={StaticResource AppStatusConverter}}" />
+
+            <Separator Grid.Column="3" />
+
+            <StatusBarItem Grid.Column="4">
+                <TextBlock Text="{Binding IsDisconnected, Converter={StaticResource ConnectionStatusConverter}}"
+                           Foreground="Gray"
+                           TextAlignment="Right"
+                           HorizontalAlignment="Stretch"/>
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>

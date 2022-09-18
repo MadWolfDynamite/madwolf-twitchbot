@@ -8,12 +8,13 @@ using System.Threading.Tasks;
 
 namespace MadWolfTwitchBot.Domain
 {
-    public class CommandRepository : BaseRepository
+    public class PromoRepository : BaseRepository
     {
-        public CommandRepository(string dbPath) : base(dbPath)
+        public PromoRepository(string dbPath) : base(dbPath) 
         {
-            m_tableName = "command";
+            m_tableName = "bot_promo";
         }
+
         public async Task<IEnumerable<T>> GetByBotId<T>(long id) where T : class, new()
         {
             var sql = $"SELECT * FROM {m_tableName} WHERE bot_id = @BotId";
@@ -25,49 +26,44 @@ namespace MadWolfTwitchBot.Domain
             return await ExecuteReaderAsync<T>(sql, param);
         }
 
-        public async Task<Command> CreateNewCommand(long id, string name, string message, long? botId) 
+        public async Task<BotPromo> CreateNewBotPromo(long id, long botId, string message)
         {
-            var commandData = new Command
+            var promoData = new BotPromo
             {
                 Id = id,
+                BotId = botId,
 
-                Name = name,
-                ResponseMessage = message,
-
-                BotId = botId
+                ResponseMessage = message
             };
 
-            var query = $@"INSERT INTO {m_tableName} (name, response_message, bot_id)
-VALUES (@Name, @Message, @BotId)";
+            var query = $@"INSERT INTO {m_tableName} (bot_id, response_message)
+VALUES (@BotId, @Message)";
 
-            return await Save(commandData, query);
+            return await Save(promoData, query);
         }
 
-        public async Task<Command> UpdateCommand(long id, string name, string message, long? botId) 
+        public async Task<BotPromo> UpdateBotPromo(long id, long botId, string message)
         {
-            var commandData = new Command
+            var promoData = new BotPromo
             {
                 Id = id,
+                BotId = botId,
 
-                Name = name,
-                ResponseMessage = message,
-
-                BotId = botId
+                ResponseMessage = message
             };
 
             var query = $@"UPDATE 
     {m_tableName}
 SET
-    name             = @Name,
-    response_message = @Message,
-    bot_id           = @BotId
+    bot_id           = @BotId,
+    response_message = @Message
 WHERE
     id = @Id";
 
-            return await Save(commandData, query);
+            return await Save(promoData, query);
         }
 
-        private async Task<Command> Save(Command data, string query)
+        private async Task<BotPromo> Save(BotPromo data, string query)
         {
             var isSuccessful = true;
 
@@ -78,18 +74,14 @@ WHERE
                 try
                 {
                     using var cmd = new SqliteCommand(query, m_dbConnection, (SqliteTransaction)transaction);
+
                     cmd.Parameters.Add(new SqliteParameter("@Id", SqliteType.Integer)).Value = data.Id;
-
-                    cmd.Parameters.Add(new SqliteParameter("@Name", SqliteType.Text)).Value = data.Name;
+                    cmd.Parameters.Add(new SqliteParameter("@BotId", SqliteType.Integer)).Value = data.BotId;
                     cmd.Parameters.Add(new SqliteParameter("@Message", SqliteType.Text)).Value = data.ResponseMessage;
-
-                    cmd.Parameters.Add(new SqliteParameter("@BotId", SqliteType.Integer)).Value = data.BotId != null ? data.BotId : DBNull.Value;
 
                     var updatedRows = cmd.ExecuteNonQuery();
                     if (updatedRows > 1)
                         throw new SqliteException("Too many rows affected", 50000);
-
-                    transaction.Commit();
                 }
                 catch (Exception ex)
                 {
@@ -101,10 +93,10 @@ WHERE
             await m_dbConnection.CloseAsync();
 
             var result = isSuccessful
-                ? await ListAll<Command>()
-                : new List<Command>();
+                ? await ListAll<BotPromo>()
+                : new List<BotPromo>();
 
-            return result.FirstOrDefault(b => b.Name.Equals(data.Name));
+            return result.FirstOrDefault(p => p.ResponseMessage.Equals(data.ResponseMessage));
         }
     }
 }

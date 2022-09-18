@@ -58,9 +58,9 @@ namespace MadWolfTwitchBot.Services
             var streamTime = "";
             if (data.StreamDateTime.HasValue)
             {
-                var streamDuration = DateTime.UtcNow - data.StreamDateTime.Value;
+                var streamDuration = DateTime.Now - data.StreamDateTime.Value;
 
-                streamTime = streamDuration.TotalHours > 0
+                streamTime = streamDuration.TotalHours >= 1
                     ? $"{Math.Floor(streamDuration.TotalHours)} {(Math.Floor(streamDuration.TotalHours) == 1 ? "hour" : "hours")}"
                     : $"{Math.Floor(streamDuration.TotalMinutes)} {(Math.Floor(streamDuration.TotalMinutes) == 1 ? "minute" : "minutes")}";
             }

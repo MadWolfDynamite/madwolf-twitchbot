@@ -1,0 +1,48 @@
+﻿<Window x:Class="MadWolfTwitchBot.Client.View.BotPromoWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MadWolfTwitchBot.Client.ViewModel"
+        xmlns:input="clr-namespace:Microsoft.Toolkit.Mvvm.Wpf.Input"
+        mc:Ignorable="d"
+        Title="BotPromoWindow"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Window.DataContext>
+        <local:BotPromoViewModel />
+    </Window.DataContext>
+    
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
+
+        <DataGrid Grid.ColumnSpan="2"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="False"
+                  Width="650"
+                  Height="150"
+                  ItemsSource="{Binding BotPromoMessages}">
+            <DataGridTemplateColumn>
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Button Content="..."
+                                Command="{Binding DataContext.EditCommandCommand, RelativeSource={RelativeSource AncestorType={x:Type DataGrid}}}" 
+                                CommandParameter="{Binding}"
+                                input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+        </DataGrid>
+    </Grid>
+</Window>

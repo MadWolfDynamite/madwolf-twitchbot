@@ -55,8 +55,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         private bool CanConfirmDetails(Window sender)
         {
-            var selectedCommands = ChatCommands.Where(c => c.IsSelected).ToList();
-            return selectedCommands.Count > 0;
+            return ChatCommands.Any(c => c.IsSelected);
         }
         private void ConfirmDetails(Window sender)
         {
