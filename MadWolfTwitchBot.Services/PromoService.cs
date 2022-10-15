@@ -12,7 +12,7 @@ namespace MadWolfTwitchBot.Services
     {
         private static readonly PromoRepository m_repository = new (@"D:\DevStuff\bottest.db");
 
-        public static async Task<IEnumerable<BotPromo>> GetAllCommands()
+        public static async Task<IEnumerable<BotPromo>> GetAllMessages()
         {
             return await m_repository.ListAll<BotPromo>();
         }

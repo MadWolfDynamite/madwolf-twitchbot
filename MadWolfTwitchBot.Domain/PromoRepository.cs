@@ -82,6 +82,8 @@ WHERE
                     var updatedRows = cmd.ExecuteNonQuery();
                     if (updatedRows > 1)
                         throw new SqliteException("Too many rows affected", 50000);
+
+                    transaction.Commit();
                 }
                 catch (Exception ex)
                 {

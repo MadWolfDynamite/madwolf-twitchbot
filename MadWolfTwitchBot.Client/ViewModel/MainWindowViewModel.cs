@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using MadWolfTwitchBot.BotCommands;
 using MadWolfTwitchBot.Client.Constants;
 using MadWolfTwitchBot.Client.Model;
+using MadWolfTwitchBot.Client.View;
 using MadWolfTwitchBot.Client.View.Modals;
 using MadWolfTwitchBot.Services;
 
@@ -87,6 +88,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
                     RefreshChannelData(m_selectedBot);
 
                     GetLocalBotCommands(m_selectedBot.Id);
+                    GetBotPromoMessages(m_selectedBot.Id);
                     UpdateBotTokenStatus(); 
                 }
                 else { TokenStatus = null; }
@@ -135,6 +137,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public ICommand ConnectCommand { get;}
         public ICommand DisconnectCommand { get; }
+
+        public ICommand PromoMessageCommand { get; }
         #endregion
 
         #region Ctor
@@ -144,8 +148,10 @@ namespace MadWolfTwitchBot.Client.ViewModel
             Title = "MadWolf Twitch Bot Client";
             AppState = new BasicStatusMessage { ColourHex = "#FF000000" };
 
-            _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromSeconds(20);
+            _timer = new()
+            {
+                Interval = TimeSpan.FromSeconds(380)
+            };
             _timer.Tick += SendPromoMessage;
 
             _uiContext = SynchronizationContext.Current;
@@ -167,6 +173,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             ConnectCommand = new RelayCommand(Connect, CanConnect);
             DisconnectCommand = new RelayCommand(Disconnect, CanDisconnect);
+
+            PromoMessageCommand = new AsyncRelayCommand(ShowPromoMessages, CanShowPromoMessages);
 
             GetDbData();
         }
@@ -193,9 +201,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 m_channel = SelectedChannel.DisplayName;
 
                 await GetLocalBotCommands(SelectedBot.Id);
-                TokenStatus = await GetBotTokenStatus();
-
                 await GetBotPromoMessages(SelectedBot.Id);
+
+                TokenStatus = await GetBotTokenStatus();
             }
         }
 
@@ -423,7 +431,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
                 if (result == null)
                 {
-                    MessageBox.Show("Oops...");
+                    AppState.Message = $"Failed to Update Bot";
+                    AppState.ColourHex = "#FF800000";
+
                     return;
                 }
 
@@ -630,7 +640,27 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         #endregion
 
-        #region Promo Message Automation
+        #region Promotion Message Methods
+
+        private bool CanShowPromoMessages()
+        {
+            return SelectedBot != null;
+        }
+        private async Task ShowPromoMessages()
+        {
+            await GetBotPromoMessages(SelectedBot.Id);
+
+            var window = new BotPromoWindow()
+            {
+                DataContext = new BotPromoViewModel(SelectedBot.Id, m_promoList)
+            };
+
+            window.Show();
+        }
+        #endregion
+
+        #region Promotion Message Automation
+
         private void SendPromoMessage(object sender, EventArgs e)
         {
             if (m_prevMessage == -1)
@@ -647,6 +677,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             m_prevMessage = nextMessage;
         }
+
         #endregion
 
         #region TwitchLib Client Methods
@@ -815,13 +846,15 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
                     break;
                 case "uptime":
+                    if (!(e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator))
+                        return;
                     break;
-                case "!hello":
-                case "!hi":
-                case "!yo":
+                case "hello":
+                case "hi":
+                case "yo":
                     _client.SendMessage(channel, $"/me Nods at {msg.DisplayName}");
                     break;
-                case "!o/":
+                case "o/":
                     _client.SendReply(channel, e.ChatMessage.Id, @"\o");
                     break;
                 default:

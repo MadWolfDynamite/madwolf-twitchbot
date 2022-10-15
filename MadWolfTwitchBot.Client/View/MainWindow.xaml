@@ -174,6 +174,19 @@
             <Button Margin="1 0" Width="125" Content="Delete Command(s)" Command="{Binding DeleteCommandCommand}" />
         </StackPanel>
 
+        <GroupBox Grid.Row="1" Grid.RowSpan="2" Grid.Column="2" Header="Bot Extras">
+            <StackPanel>
+                <Button Margin="0 1" Content="Channel History"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                <Button Margin="0 1" Content="Built-in Commands"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                <Button Margin="0 1" Content="Variables"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+                <Button Margin="0 1" Content="Promotion Messages" Command="{Binding PromoMessageCommand}"
+                    input:RelayCommandExtensions.IsCommandUpdateEnabled="True" />
+            </StackPanel>
+        </GroupBox>
+
         <GroupBox Grid.Row="3" Grid.ColumnSpan="2" Header="Chat Log">
             <ListView FontFamily="Consolas" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Messages}">
                 <ListView.ItemTemplate>
