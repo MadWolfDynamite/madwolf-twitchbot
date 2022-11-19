@@ -8,6 +8,7 @@ namespace MadWolfTwitchBot.Client.Model
     {
         None = 0,
         NotValid = 1,
-        Valid = 2
+        Valid = 2,
+        Error = 3
     }
 }

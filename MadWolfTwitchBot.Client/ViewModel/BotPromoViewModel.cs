@@ -1,13 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using MadWolfTwitchBot.Client.Model;
 using MadWolfTwitchBot.Client.View.Modals;
 using MadWolfTwitchBot.Services;
-using System;
+
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -20,8 +20,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public bool IsSelected
         {
-            get { return m_selected; }
-            set { SetProperty(ref m_selected, value); }
+            get => m_selected; 
+            set => SetProperty(ref m_selected, value);
         }
 
         public BasicPromo Data { get; set; }

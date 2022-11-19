@@ -1,17 +1,15 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using MadWolfTwitchBot.Client.Constants;
 using MadWolfTwitchBot.Client.Model;
 using MadWolfTwitchBot.Client.View.Modals;
 using MadWolfTwitchBot.Services;
+
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Data;
 using System.Windows.Input;
 
 namespace MadWolfTwitchBot.Client.ViewModel
@@ -185,20 +183,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
         {
             sender.DialogResult = true;
             sender.Close();
-        }
-    }
-
-    public class BoolToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            var isInEditMode = (bool)value;
-            return isInEditMode ? Visibility.Collapsed : Visibility.Visible;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
         }
     }
 }

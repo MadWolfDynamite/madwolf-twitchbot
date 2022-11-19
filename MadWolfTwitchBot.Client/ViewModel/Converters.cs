@@ -19,6 +19,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             {
                 OAuthTokenStatus.Valid => new Uri("/icons/StatusOKOutline_16x.png", UriKind.Relative),
                 OAuthTokenStatus.NotValid => new Uri("/icons/StatusInvalidOutline_16x.png", UriKind.Relative),
+                OAuthTokenStatus.Error => new Uri("/icons/StatusCriticalErrorOutline_16x.png", UriKind.Relative),
                 _ => new Uri("/icons/StatusSecurityWarningOutline_16x.png", UriKind.Relative)
             };
         }
@@ -30,6 +31,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             {
                 "/icons/StatusOKOutline_16x.png" => OAuthTokenStatus.Valid,
                 "/icons/StatusInvalidOutline_16x.png" => OAuthTokenStatus.NotValid,
+                "/icons/StatusCriticalErrorOutline_16x.png" => OAuthTokenStatus.Error,
                 _ => OAuthTokenStatus.None
             };
         }
@@ -59,6 +61,20 @@ namespace MadWolfTwitchBot.Client.ViewModel
             return string.IsNullOrWhiteSpace(statusMessage)
                 ? Visibility.Collapsed
                 : Visibility.Visible;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    class BoolToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var isInEditMode = (bool)value;
+            return isInEditMode ? Visibility.Collapsed : Visibility.Visible;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

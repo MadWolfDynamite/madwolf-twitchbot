@@ -1,12 +1,11 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+
 using MadWolfTwitchBot.Client.Model;
 using MadWolfTwitchBot.Services;
-using System;
-using System.Collections.Generic;
+
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -25,8 +24,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public bool IsNew
         {
-            get { return m_new; }
-            set { SetProperty(ref m_new, value); }
+            get => m_new; 
+            set => SetProperty(ref m_new, value);
         }
 
         public string Name
@@ -48,20 +47,20 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public string ResponseMessage
         {
-            get { return m_message; }
-            set { SetProperty(ref m_message, value); }
+            get => m_message; 
+            set => SetProperty(ref m_message, value);
         }
 
         public bool IsLocalCommand
         {
-            get { return m_local; }
-            set { SetProperty(ref m_local, value); }
+            get => m_local; 
+            set => SetProperty(ref m_local, value);
         }
 
         public BasicBot SelectedBot
         {
-            get { return m_bot; }
-            set { SetProperty(ref m_bot, value); }
+            get => m_bot; 
+            set => SetProperty(ref m_bot, value);
         }
 
         public ObservableCollection<BasicBot> AvailableBots { get; set; }

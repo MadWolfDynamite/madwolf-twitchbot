@@ -69,7 +69,7 @@ namespace MadWolfTwitchBot.Services
                 ? $"Check out {data.Link} ({data.Name}) who...has been streaming {data.Game} for {streamTime}!"
                 : $"Check out {data.Link} ({data.Name}) who was previously streaming {data.Game}!";
 
-            return $"/announce {message}";
+            return message;
         }
     }
 }

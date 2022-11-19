@@ -19,6 +19,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
+using TwitchLib.Client.Extensions;
 using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
@@ -28,9 +29,9 @@ namespace MadWolfTwitchBot.Client.ViewModel
     public class MainWindowViewModel : ObservableObject
     {
         #region Private Members
-        private TwitchClient _client;
-        private DispatcherTimer _timer;
-        private readonly SynchronizationContext _uiContext;
+        private TwitchClient m_client;
+        private DispatcherTimer m_promoTimer;
+        private readonly SynchronizationContext m_uiContext;
 
         private string m_windowTitle;
         private BasicStatusMessage m_status;
@@ -52,33 +53,33 @@ namespace MadWolfTwitchBot.Client.ViewModel
         #region Properties
         public string Title
         {
-            get { return m_windowTitle; }
-            set { SetProperty(ref m_windowTitle, value); }
+            get => m_windowTitle;
+            set => SetProperty(ref m_windowTitle, value);
         }
 
         public BasicStatusMessage AppState
         {
-            get { return m_status; }
-            set { SetProperty(ref m_status, value); }
+            get => m_status;
+            set => SetProperty(ref m_status, value);
         }
         
         public bool IsDisconnected 
         {
-            get { return m_disconnected; }
-            set { SetProperty(ref m_disconnected, value); }
+            get => m_disconnected; 
+            set => SetProperty(ref m_disconnected, value);
         }
 
         public OAuthTokenStatus? TokenStatus
         {
-            get { return m_tokenStatus; }
-            set { SetProperty(ref m_tokenStatus, value); }
+            get => m_tokenStatus; 
+            set => SetProperty(ref m_tokenStatus, value);
         }
 
         public ObservableCollection<BasicBot> AvailableBots { get; private set; } = new ObservableCollection<BasicBot>();
 
         public BasicBot SelectedBot
         {
-            get { return m_selectedBot; }
+            get => m_selectedBot;
             set
             {
                 SetProperty(ref m_selectedBot, value);
@@ -99,13 +100,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public BasicChannel SelectedChannel
         {
-            get { return m_selectedChannel; }
-            set { SetProperty(ref m_selectedChannel, value); }
+            get => m_selectedChannel; 
+            set => SetProperty(ref m_selectedChannel, value);
         }
 
         public string ChannelSearch
         {
-            get { return m_channel; }
+            get => m_channel;
             set
             {
                 SetProperty(ref m_channel, value);
@@ -148,13 +149,13 @@ namespace MadWolfTwitchBot.Client.ViewModel
             Title = "MadWolf Twitch Bot Client";
             AppState = new BasicStatusMessage { ColourHex = "#FF000000" };
 
-            _timer = new()
+            m_promoTimer = new()
             {
-                Interval = TimeSpan.FromSeconds(380)
+                Interval = TimeSpan.FromMinutes(30)
             };
-            _timer.Tick += SendPromoMessage;
+            m_promoTimer.Tick += SendPromoMessage;
 
-            _uiContext = SynchronizationContext.Current;
+            m_uiContext = SynchronizationContext.Current;
 
             AddBotCommand = new AsyncRelayCommand(AddNewBot);
             EditBotCommand = new AsyncRelayCommand(EditBotDetails, CanEditBotDetails);
@@ -176,7 +177,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             PromoMessageCommand = new AsyncRelayCommand(ShowPromoMessages, CanShowPromoMessages);
 
-            GetDbData();
+            GetDbData().ConfigureAwait(false);
         }
         #endregion
 
@@ -303,11 +304,21 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (String.IsNullOrEmpty(SelectedBot.OAuthToken))
                 return OAuthTokenStatus.None;
 
-            var tokenAge = DateTime.UtcNow - (SelectedBot.TokenTimestamp ?? DateTime.MinValue);
-            if (tokenAge.TotalMinutes >= TokenSettings.RefreshMinutes) 
-            { 
-                var validationResult = await WolfAPIService.ValidateOAuthToken(SelectedBot.OAuthToken);
-                return validationResult ? OAuthTokenStatus.Valid : OAuthTokenStatus.NotValid;
+            try
+            {
+                var tokenAge = DateTime.UtcNow - (SelectedBot.TokenTimestamp ?? DateTime.MinValue);
+                if (tokenAge.TotalMinutes >= TokenSettings.RefreshMinutes)
+                {
+                    var validationResult = await WolfAPIService.ValidateOAuthToken(SelectedBot.OAuthToken);
+                    return validationResult ? OAuthTokenStatus.Valid : OAuthTokenStatus.NotValid;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppState.Message = $"{ex.Message}";
+                AppState.ColourHex = "#FF800000";
+
+                return OAuthTokenStatus.Error;
             }
                 
             return OAuthTokenStatus.Valid;
@@ -666,8 +677,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (m_prevMessage == -1)
                 m_prevMessage = rng.Next(m_promoList.Count);
 
-            var channel = _client.JoinedChannels[0];
-            _client.SendMessage(channel, $"/announce {m_promoList[m_prevMessage]}");
+            var channel = m_client.JoinedChannels[0];
+            m_client.Announce(channel, $"{m_promoList[m_prevMessage]}");
 
             int nextMessage;
             do
@@ -706,15 +717,19 @@ namespace MadWolfTwitchBot.Client.ViewModel
             };
 
             WebSocketClient customClient = new(clientOptions);
-            _client = new TwitchClient(customClient);
-            _client.Initialize(credentials, SelectedChannel.Username);
+            m_client = new TwitchClient(customClient);
 
-            _client.OnConnected += OnBotConnected;
-            _client.OnDisconnected += OnBotDisconnected;
-            _client.OnJoinedChannel += OnChannelJoined;
-            _client.OnMessageReceived += OnReceivedMessage;
+            m_client.AddChatCommandIdentifier('!');
+            m_client.Initialize(credentials, SelectedChannel.Username);
 
-            if (!_client.Connect())
+            m_client.OnConnected += OnBotConnected;
+            m_client.OnDisconnected += OnBotDisconnected;
+            m_client.OnJoinedChannel += OnChannelJoined;
+
+            m_client.OnChatCommandReceived += OnReceivedCommand;
+            m_client.OnMessageReceived += OnReceivedMessage;
+
+            if (!m_client.Connect())
             {
                 AppState.Message = $"Connection Failed";
                 AppState.ColourHex = "#FF800000";
@@ -727,19 +742,22 @@ namespace MadWolfTwitchBot.Client.ViewModel
         }
         private void Disconnect()
         {
-            _client.Disconnect();
+            m_client.Disconnect();
         }
         #endregion
 
         #region TwitchLib Client Events
         private void OnBotConnected(object sender, OnConnectedArgs e)
         {
-            _uiContext.Send(x => {
+            m_uiContext.Send(x => {
                 Title = $"{SelectedChannel.DisplayName} - {Title}";
-                IsDisconnected = false;
 
                 AppState.Message = $"";
+
+                IsDisconnected = false;
             }, null);
+
+           
 
             var result = BotService.CreateOrUpdateBot(
                 SelectedBot.Id, 
@@ -750,26 +768,30 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 SelectedBot.TokenTimestamp, 
                 SelectedChannel.Id);
 
-            _timer.Start();
+            m_promoTimer.Start();
         }
         private void OnBotDisconnected(object sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
         {
-            Title = Title.Replace($"{SelectedChannel} - ", "");
-            IsDisconnected = true;
+            m_uiContext.Send(x => {
+                Title = Title.Replace($"{SelectedChannel} - ", "");
 
-            AppState.Message = $"Disconnected from {SelectedChannel.DisplayName}";
-            AppState.ColourHex = "#FF008000";
+                AppState.Message = $"Disconnected from {SelectedChannel.DisplayName}";
+                AppState.ColourHex = "#FF008000";
 
-            _timer.Stop();
+                IsDisconnected = true;
+            }
+            , null);
+
+            m_promoTimer.Stop();
             m_prevMessage = -1;
         }
 
         private void OnChannelJoined(object sender, OnJoinedChannelArgs e)
         {
-            _client.SendMessage(e.Channel, "/me " + BotCommandService.GetConnectionMessage());
+            m_client.SendMessage(e.Channel, "/me " + BotCommandService.GetConnectionMessage());
         }
 
-        private async void OnReceivedMessage(object sender, OnMessageReceivedArgs e) 
+        private void OnReceivedMessage(object sender, OnMessageReceivedArgs e) 
         {
             var msg = new Model.ChatMessage
             {
@@ -778,16 +800,31 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 HexColour = e.ChatMessage.ColorHex
             };
 
-            if (e.ChatMessage.Username.Equals(SelectedBot.Username))
+            if (e.ChatMessage.Username.Equals(SelectedBot.Username) || msg.Message.StartsWith("!"))
                 return;
 
-            var channel = _client.JoinedChannels[0];
-            var args = msg.Message.Trim().Split(' ');
+            var channel = m_client.JoinedChannels[0];
+            m_uiContext.Send(x => Messages.Add(msg), null);
+        }
 
-            if (!args[0].StartsWith("!"))
+        private async void OnReceivedCommand(object sender, OnChatCommandReceivedArgs e)
+        {
+            var baseMessage = e.Command.ChatMessage;
+
+            if (baseMessage.Username.Equals(SelectedBot.Username))
                 return;
 
-            var command = args[0].ToLower().Replace("!", "");
+            var msg = new Model.ChatMessage
+            {
+                DisplayName = baseMessage.DisplayName,
+                Message = baseMessage.Message,
+                HexColour = baseMessage.ColorHex
+            };
+
+            var channel = m_client.JoinedChannels[0];
+
+            var command = e.Command.CommandText;
+            var args = e.Command.ArgumentsAsList;
 
             var selectedCommand = GlobalCommands.FirstOrDefault(c => command.Equals(c.Name));
             if (selectedCommand != null)
@@ -795,7 +832,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 //TODO: Variable handling (e.g. {name} display's username)
                 var message = selectedCommand.ResponseMessage;
 
-                _client.SendMessage(channel, message);
+                m_client.SendMessage(channel, message);
                 return;
             }
 
@@ -805,16 +842,16 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 //TODO: Variable handling (e.g. {name} display's username)
                 var message = selectedCommand.ResponseMessage;
 
-                _client.SendMessage(channel, message);
+                m_client.SendMessage(channel, message);
                 return;
             }
 
             //Special Easter Egg Command
             if (command.Equals("lb") && SelectedBot.Username.Equals("windupkagura"))
             {
-                _client.SendMessage(channel, "Uses Final Heaven");
+                m_client.SendMessage(channel, "Uses Final Heaven");
                 await Task.Delay(4200);
-                _client.SendMessage(channel, $"Critical direct hit! {msg.DisplayName} takes 731858 damage.");
+                m_client.SendMessage(channel, $"Critical direct hit! {msg.DisplayName} takes 731858 damage.");
 
                 return;
             }
@@ -826,40 +863,48 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 case "so":
                 case "shill":
                 case "plug":
-                    if (!(e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator))
+                    if (!(baseMessage.IsBroadcaster || baseMessage.IsModerator))
                         return;
 
-                    if (args.Length < 2)
+                    if (args.Count < 1)
                     {
-                        _client.SendReply(channel, e.ChatMessage.Id, "There's nobody to shout out...");
+                        m_client.SendReply(channel, baseMessage.Id, "There's nobody to shout out...");
                         return;
                     }
 
                     if (args.Contains(SelectedChannel.Username))
                     {
-                        _client.SendMessage(channel, $"/me is visibly vexed at {e.ChatMessage.DisplayName}");
+                        m_client.SendMessage(channel, $"/me is visibly vexed at {baseMessage.DisplayName}");
                         return;
                     }
 
-                    for (int i = 1; i < args.Length; i++)
-                        _client.SendMessage(channel, await CommandService.GenerateShoutoutMessage(ApiSettings.ClientId, SelectedBot.OAuthToken, args[i]));
+                    var userNames = args.Distinct();
+
+                    if (userNames.Count() > 10)
+                    {
+                        m_client.SendMessage(channel, $"https://www.youtube.com/watch?v=qWAbrdaWwSk");
+                        return;
+                    }
+
+                    foreach (var user in userNames)
+                        m_client.SendMessage(channel, await CommandService.GenerateShoutoutMessage(ApiSettings.ClientId, SelectedBot.OAuthToken, user));
 
                     break;
                 case "uptime":
-                    if (!(e.ChatMessage.IsBroadcaster || e.ChatMessage.IsModerator))
+                    if (!(baseMessage.IsBroadcaster || baseMessage.IsModerator))
                         return;
                     break;
                 case "hello":
                 case "hi":
                 case "yo":
-                    _client.SendMessage(channel, $"/me Nods at {msg.DisplayName}");
-                    break;
+                    m_client.SendMessage(channel, $"/me Nods at {msg.DisplayName}");
+                    return;
                 case "o/":
-                    _client.SendReply(channel, e.ChatMessage.Id, @"\o");
-                    break;
+                    m_client.SendReply(channel, baseMessage.Id, @"\o");
+                    return;
                 default:
-                    _uiContext.Send(x => Messages.Add(msg), null);
-                    break;
+                    m_client.SendMessage(channel, $"Could not find a !{command} command...");
+                    return;
             }
         }
         #endregion

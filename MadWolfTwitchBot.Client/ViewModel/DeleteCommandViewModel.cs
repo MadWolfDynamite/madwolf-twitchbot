@@ -17,8 +17,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         public bool IsSelected 
         { 
-            get { return m_selected; }
-            set { SetProperty(ref m_selected, value); }
+            get => m_selected; 
+            set => SetProperty(ref m_selected, value);
         }
 
         public BasicCommand Data { get; set; }

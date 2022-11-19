@@ -1,9 +1,9 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+
 using MadWolfTwitchBot.Client.Constants;
 using MadWolfTwitchBot.Services;
+
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace MadWolfTwitchBot.Client.ViewModel
@@ -59,7 +59,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         private async Task GenerateAuthUri()
         {
             var baseUri = await WolfAPIService.GenerateAuthenticationUrl(ApiSettings.ClientId, "https://localhost:44301/");
-            var uri = $"{baseUri}&force_verify=true&scope=channel:moderate chat:edit chat:read whispers:read whispers:edit";
+            var uri = $"{baseUri}&force_verify=true&scope=channel:moderate chat:edit chat:read whispers:read whispers:edit moderator:manage:announcements";
 
             Uri = uri;
         }
