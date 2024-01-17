@@ -12,16 +12,20 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
+using TwitchLib.Api;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Extensions;
 using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
+using TwitchLib.Communication.Events;
 using TwitchLib.Communication.Models;
 
 namespace MadWolfTwitchBot.Client.ViewModel
@@ -29,9 +33,16 @@ namespace MadWolfTwitchBot.Client.ViewModel
     public class MainWindowViewModel : ObservableObject
     {
         #region Private Members
-        private TwitchClient m_client;
-        private DispatcherTimer m_promoTimer;
+
         private readonly SynchronizationContext m_uiContext;
+
+        private TwitchClient m_client;
+        private bool m_isDisconnectClientInitiated = false;
+
+        private DispatcherTimer m_promoTimer;
+        private DispatcherTimer m_oauthErrorTimer;
+        private DispatcherTimer m_oauthRefreshTimer;
+        
 
         private string m_windowTitle;
         private BasicStatusMessage m_status;
@@ -45,7 +56,6 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         private string m_channel;
 
-        private readonly Random rng = new();
         private int m_prevMessage;
         private readonly IList<BasicPromo> m_promoList = new List<BasicPromo>();
         #endregion
@@ -86,11 +96,14 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
                 if (m_selectedBot != null)
                 {
-                    RefreshChannelData(m_selectedBot);
+                    m_uiContext.Send(async delegate {
+                        await RefreshChannelData(m_selectedBot);
 
-                    GetLocalBotCommands(m_selectedBot.Id);
-                    GetBotPromoMessages(m_selectedBot.Id);
-                    UpdateBotTokenStatus(); 
+                        await GetLocalBotCommands(m_selectedBot.Id);
+                        await GetBotPromoMessages(m_selectedBot.Id);
+
+                        await UpdateBotTokenStatus();
+                    }, null);   
                 }
                 else { TokenStatus = null; }
             }
@@ -118,6 +131,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         public ObservableCollection<BasicCommand> LocalCommands { get; set; } = new ObservableCollection<BasicCommand>();
 
         public ObservableCollection<Model.ChatMessage> Messages { get; set; } = new ObservableCollection<Model.ChatMessage>();
+
         #endregion
 
         #region Commands
@@ -143,19 +157,20 @@ namespace MadWolfTwitchBot.Client.ViewModel
         #endregion
 
         #region Ctor
+
         public MainWindowViewModel()
         {
+            SetupTimers();
             WolfAPIService.SetApiEndpoint(ApiSettings.Endpoint);
+
             Title = "MadWolf Twitch Bot Client";
             AppState = new BasicStatusMessage { ColourHex = "#FF000000" };
 
-            m_promoTimer = new()
-            {
-                Interval = TimeSpan.FromMinutes(30)
-            };
-            m_promoTimer.Tick += SendPromoMessage;
-
             m_uiContext = SynchronizationContext.Current;
+
+            m_uiContext.Post(async delegate {
+                await GetDbData();
+            }, null);
 
             AddBotCommand = new AsyncRelayCommand(AddNewBot);
             EditBotCommand = new AsyncRelayCommand(EditBotDetails, CanEditBotDetails);
@@ -176,10 +191,42 @@ namespace MadWolfTwitchBot.Client.ViewModel
             DisconnectCommand = new RelayCommand(Disconnect, CanDisconnect);
 
             PromoMessageCommand = new AsyncRelayCommand(ShowPromoMessages, CanShowPromoMessages);
-
-            GetDbData().ConfigureAwait(false);
         }
+
         #endregion
+
+        private void SetupTimers()
+        {
+            m_promoTimer = new() { Interval = TimeSpan.FromMinutes(45) };
+            m_promoTimer.Tick += SendPromoMessage;
+
+            m_oauthErrorTimer = new() { Interval = TimeSpan.FromSeconds(5) };
+            m_oauthErrorTimer.Tick += RetryFailedTokenStatus;
+
+            m_oauthRefreshTimer = new() { Interval = TimeSpan.FromMinutes(TokenSettings.RefreshMinutes) };
+            m_oauthRefreshTimer.Tick += CheckTokenStatus;
+        }
+
+        private void SetupTwitchClient()
+        {
+            var clientOptions = new ClientOptions
+            {
+                MessagesAllowedInPeriod = 750,
+                ThrottlingPeriod = TimeSpan.FromSeconds(30)
+            };
+
+            m_client = new TwitchClient(new WebSocketClient(clientOptions));
+            m_client.Initialize(new ConnectionCredentials(SelectedBot.Username, SelectedBot.OAuthToken));
+
+            m_client.OnConnected += OnBotConnected;
+            m_client.OnDisconnected += OnBotDisconnected;
+
+            m_client.OnJoinedChannel += OnChannelJoined;
+            m_client.OnLeftChannel += OnChannelLeft;
+
+            m_client.OnChatCommandReceived += OnReceivedCommand;
+            m_client.OnMessageReceived += OnReceivedMessage;
+        }
 
         #region Data Retrieval Methods
         private async Task GetDbData()
@@ -204,7 +251,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 await GetLocalBotCommands(SelectedBot.Id);
                 await GetBotPromoMessages(SelectedBot.Id);
 
-                TokenStatus = await GetBotTokenStatus();
+                await UpdateBotTokenStatus();
             }
         }
 
@@ -299,8 +346,11 @@ namespace MadWolfTwitchBot.Client.ViewModel
         #endregion
 
         #region OAuth Token Methods
-        private async Task<OAuthTokenStatus> GetBotTokenStatus()
+        private async Task<OAuthTokenStatus> GetBotTokenStatus(bool isRetry)
         {
+            AppState.Message = isRetry ? "Retrying OAuth Token Verification..." : "Verifying OAuth Token...";
+            AppState.ColourHex = "#FF808080";
+
             if (String.IsNullOrEmpty(SelectedBot.OAuthToken))
                 return OAuthTokenStatus.None;
 
@@ -318,14 +368,42 @@ namespace MadWolfTwitchBot.Client.ViewModel
                 AppState.Message = $"{ex.Message}";
                 AppState.ColourHex = "#FF800000";
 
+                m_oauthErrorTimer.Start();
+
                 return OAuthTokenStatus.Error;
             }
                 
             return OAuthTokenStatus.Valid;
         }
-        private async Task UpdateBotTokenStatus()
+
+        private async Task UpdateBotTokenStatus(bool isRetry = false)
         {
-            TokenStatus = await GetBotTokenStatus();
+            TokenStatus = await GetBotTokenStatus(isRetry);
+
+            AppState.Message = TokenStatus == OAuthTokenStatus.Error
+                ? AppState.Message
+                : string.Empty;
+
+            if (TokenStatus == OAuthTokenStatus.Valid && m_client == null)
+                SetupTwitchClient();
+        }
+
+        private async void RetryFailedTokenStatus(object sender, EventArgs e) 
+        {
+            var timer = sender as DispatcherTimer;
+
+            await UpdateBotTokenStatus(true);
+
+            if (TokenStatus != OAuthTokenStatus.Error)
+                timer.Stop();
+        }
+
+        private async void CheckTokenStatus(object sender, EventArgs e)
+        {
+            await UpdateBotTokenStatus();
+
+            if (TokenStatus == OAuthTokenStatus.NotValid)
+                await RefreshOAuthToken();
         }
 
         private bool CanGetOAuthToken()
@@ -335,6 +413,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             return TokenStatus == OAuthTokenStatus.None;
         }
+
         private async Task GetOAuthToken()
         {
             var tokenRequestWindow = new OAuthTokenRetievalWindow
@@ -352,8 +431,8 @@ namespace MadWolfTwitchBot.Client.ViewModel
                     SelectedBot.DisplayName, 
                     data.OAuthToken, 
                     data.RefreshToken, 
-                    data.TokenTimestamp, 
-                    SelectedChannel.Id);
+                    data.TokenTimestamp,
+                    SelectedChannel?.Id);
 
                 if (updatedDetails != null)
                     await RefreshBotData(new BasicBot(updatedDetails));
@@ -367,6 +446,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             return TokenStatus == OAuthTokenStatus.NotValid;
         }
+
         private async Task RefreshOAuthToken()
         {
             var newToken = await WolfAPIService.RefreshTwitchTokenAsync(ApiSettings.ClientId, ApiSettings.ClientSecret, SelectedBot.RefreshToken);
@@ -672,18 +752,26 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
         #region Promotion Message Automation
 
-        private void SendPromoMessage(object sender, EventArgs e)
+        private async void SendPromoMessage(object sender, EventArgs e)
         {
+            CheckTokenStatus(sender, e);
+
+            var minIndex = 0;
+            var maxIndex = m_promoList.Count;
+
+            var rng = RandomNumberGenerator.GetInt32(minIndex, maxIndex);
+
             if (m_prevMessage == -1)
-                m_prevMessage = rng.Next(m_promoList.Count);
+                m_prevMessage= rng;
 
             var channel = m_client.JoinedChannels[0];
-            m_client.Announce(channel, $"{m_promoList[m_prevMessage]}");
+            await WolfAPIService.AnnouncePromoMessage(ApiSettings.ClientId, SelectedBot.OAuthToken, channel.Channel, $"{m_promoList[m_prevMessage]}");
 
             int nextMessage;
             do
             {
-                nextMessage = rng.Next(m_promoList.Count);
+                rng = RandomNumberGenerator.GetInt32(minIndex, maxIndex);
+                nextMessage = rng;
             } while (nextMessage == m_prevMessage);
 
             m_prevMessage = nextMessage;
@@ -692,6 +780,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
         #endregion
 
         #region TwitchLib Client Methods
+
         private bool CanConnect()
         {
             if (SelectedBot == null || SelectedChannel == null)
@@ -702,37 +791,23 @@ namespace MadWolfTwitchBot.Client.ViewModel
 
             return IsDisconnected && TokenStatus == OAuthTokenStatus.Valid;
         }
+
         private void Connect()
         {
+            IsDisconnected = false;
             Messages.Clear();
 
             AppState.Message = $"Connecting to {SelectedChannel.DisplayName}...";
             AppState.ColourHex = "#FF808080";
-
-            ConnectionCredentials credentials = new(SelectedBot.Username, SelectedBot.OAuthToken);
-            var clientOptions = new ClientOptions
-            {
-                MessagesAllowedInPeriod = 750,
-                ThrottlingPeriod = TimeSpan.FromSeconds(30)
-            };
-
-            WebSocketClient customClient = new(clientOptions);
-            m_client = new TwitchClient(customClient);
-
-            m_client.AddChatCommandIdentifier('!');
-            m_client.Initialize(credentials, SelectedChannel.Username);
-
-            m_client.OnConnected += OnBotConnected;
-            m_client.OnDisconnected += OnBotDisconnected;
-            m_client.OnJoinedChannel += OnChannelJoined;
-
-            m_client.OnChatCommandReceived += OnReceivedCommand;
-            m_client.OnMessageReceived += OnReceivedMessage;
-
+            
+            m_client.SetConnectionCredentials(new ConnectionCredentials(SelectedBot.Username, SelectedBot.OAuthToken));
+                
             if (!m_client.Connect())
             {
                 AppState.Message = $"Connection Failed";
                 AppState.ColourHex = "#FF800000";
+
+                IsDisconnected = true;
             }
         }
 
@@ -740,54 +815,78 @@ namespace MadWolfTwitchBot.Client.ViewModel
         {
             return !IsDisconnected;
         }
+
         private void Disconnect()
         {
-            m_client.Disconnect();
+            if (m_client.JoinedChannels.Count > 0)
+                m_client.LeaveChannel(m_client.JoinedChannels[0]);
         }
+
         #endregion
 
         #region TwitchLib Client Events
+
         private void OnBotConnected(object sender, OnConnectedArgs e)
         {
-            m_uiContext.Send(x => {
-                Title = $"{SelectedChannel.DisplayName} - {Title}";
+            if (m_isDisconnectClientInitiated) return;
 
-                AppState.Message = $"";
-
-                IsDisconnected = false;
-            }, null);
-
-           
-
-            var result = BotService.CreateOrUpdateBot(
-                SelectedBot.Id, 
-                SelectedBot.Username, 
-                SelectedBot.DisplayName, 
-                SelectedBot.OAuthToken, 
-                SelectedBot.RefreshToken, 
-                SelectedBot.TokenTimestamp, 
-                SelectedChannel.Id);
-
-            m_promoTimer.Start();
+            m_client.JoinChannel(SelectedChannel.Username);
         }
-        private void OnBotDisconnected(object sender, TwitchLib.Communication.Events.OnDisconnectedEventArgs e)
+
+        private void OnBotDisconnected(object sender, OnDisconnectedEventArgs e)
         {
-            m_uiContext.Send(x => {
-                Title = Title.Replace($"{SelectedChannel} - ", "");
+            if (m_isDisconnectClientInitiated)
+            {
+                m_uiContext.Send(delegate {
+                    Title = Title.Replace($"[{SelectedChannel.DisplayName}] ", string.Empty);
+                    IsDisconnected = true;
 
-                AppState.Message = $"Disconnected from {SelectedChannel.DisplayName}";
-                AppState.ColourHex = "#FF008000";
+                    m_isDisconnectClientInitiated = false;
+                }, null);
 
-                IsDisconnected = true;
+                m_prevMessage = -1;
             }
-            , null);
+            else
+            {
+                AppState.Message = $"Attempting to reconnect to {SelectedChannel.DisplayName}...";
+                AppState.ColourHex = "#FF808080";
+
+                m_client.Reconnect();
+            }
+        }
+
+        private void OnChannelLeft(object sender, OnLeftChannelArgs e)
+        {
+            m_isDisconnectClientInitiated = true;
 
             m_promoTimer.Stop();
-            m_prevMessage = -1;
+            m_oauthRefreshTimer.Stop();
+
+            m_client.Disconnect();
         }
 
         private void OnChannelJoined(object sender, OnJoinedChannelArgs e)
         {
+            m_uiContext.Send(async delegate {
+                Title = $"[{SelectedChannel.DisplayName}] {Title}";
+
+                AppState.Message = string.Empty;
+
+                var result = await BotService.CreateOrUpdateBot(
+                    SelectedBot.Id,
+                    SelectedBot.Username,
+                    SelectedBot.DisplayName,
+                    SelectedBot.OAuthToken,
+                    SelectedBot.RefreshToken,
+                    SelectedBot.TokenTimestamp,
+                    SelectedChannel.Id);
+
+                m_isDisconnectClientInitiated = false;
+            }, null);
+
+            m_promoTimer.Start();
+            m_oauthRefreshTimer.Start();
+
             m_client.SendMessage(e.Channel, "/me " + BotCommandService.GetConnectionMessage());
         }
 
@@ -803,8 +902,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (e.ChatMessage.Username.Equals(SelectedBot.Username) || msg.Message.StartsWith("!"))
                 return;
 
-            var channel = m_client.JoinedChannels[0];
-            m_uiContext.Send(x => Messages.Add(msg), null);
+            m_uiContext.Post(delegate { Messages.Add(msg); }, null);
         }
 
         private async void OnReceivedCommand(object sender, OnChatCommandReceivedArgs e)
@@ -830,7 +928,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (selectedCommand != null)
             {
                 //TODO: Variable handling (e.g. {name} display's username)
-                var message = selectedCommand.ResponseMessage;
+                var message = ParseSystemVariables(selectedCommand.ResponseMessage, baseMessage.DisplayName);
 
                 m_client.SendMessage(channel, message);
                 return;
@@ -840,7 +938,7 @@ namespace MadWolfTwitchBot.Client.ViewModel
             if (selectedCommand != null)
             {
                 //TODO: Variable handling (e.g. {name} display's username)
-                var message = selectedCommand.ResponseMessage;
+                var message = ParseSystemVariables(selectedCommand.ResponseMessage, baseMessage.DisplayName);
 
                 m_client.SendMessage(channel, message);
                 return;
@@ -907,6 +1005,25 @@ namespace MadWolfTwitchBot.Client.ViewModel
                     return;
             }
         }
+
         #endregion
+
+        private string ParseSystemVariables (string message, string username)
+        {
+            foreach (var variable in SystemBotVariables.SystemVariables)
+            {
+                switch (variable)
+                {
+                    case "{bot}":
+                        message = message.Replace(variable, SelectedBot.DisplayName); break;
+                    case "{name}":
+                        message = message.Replace(variable, username); break;
+                    case "{channel}":
+                        message = message.Replace(variable, SelectedChannel.DisplayName); break;
+                }
+            }
+
+            return message;
+        }
     }
 }

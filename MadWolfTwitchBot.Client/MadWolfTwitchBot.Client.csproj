@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net7.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="icons\StatusCriticalErrorOutline_16x.png" />
     <None Remove="icons\StatusInvalidOutline_16x.png" />
     <None Remove="icons\StatusOKOutline_16x.png" />
     <None Remove="icons\StatusOK_16x.png" />
@@ -14,11 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1370.28" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="TwitchLib" Version="3.4.1" />
-    <PackageReference Include="TwitchLib.Client" Version="3.2.6" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.1823.32" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="TwitchLib" Version="3.5.3" />
+    <PackageReference Include="TwitchLib.Client" Version="3.3.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="icons\StatusCriticalErrorOutline_16x.png" />
     <Resource Include="icons\StatusInvalidOutline_16x.png" />
     <Resource Include="icons\StatusOKOutline_16x.png" />
     <Resource Include="icons\StatusOK_16x.png">

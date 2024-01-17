@@ -11,7 +11,7 @@ namespace MadWolfTwitchBot.Client.Model
 
         public override bool Equals(object obj)
         {
-            if (obj == null || !(obj is BotCommand))
+            if (obj == null || obj is not BotCommand)
                 return false;
 
             var command = obj as BotCommand;
@@ -33,7 +33,8 @@ namespace MadWolfTwitchBot.Client.Model
 
             return commandHash ^ messageHash;
         }
-        private int ShiftAndWrap(int value, int positions)
+
+        private static int ShiftAndWrap(int value, int positions)
         {
             positions &= 0x1F;
 

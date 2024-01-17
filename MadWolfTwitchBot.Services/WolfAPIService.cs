@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Tools.StreamSerializer;
@@ -14,19 +15,19 @@ namespace MadWolfTwitchBot.Services
 {
     public static class WolfAPIService
     {
-        private static readonly HttpClient _client = new();
+        private static readonly HttpClient m_client = new();
 
         public static void SetApiEndpoint(string endpoint)
         {
-            if (_client.BaseAddress == null)
-                _client.BaseAddress = new Uri(endpoint);
+            if (m_client.BaseAddress == null)
+                m_client.BaseAddress = new Uri(endpoint);
         }
 
         public static async Task<bool> ValidateOAuthToken(string token)
         {
             string apiPath = $"token/{token}";
 
-            var response = await _client.GetAsync(apiPath);
+            var response = await m_client.GetAsync(apiPath);
             var stream = await response.Content.ReadAsStreamAsync();
 
             if (response.IsSuccessStatusCode)
@@ -55,7 +56,7 @@ namespace MadWolfTwitchBot.Services
             var request = new StringContent(json);
             request.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            var response = await _client.PostAsync(apiPath, request);
+            var response = await m_client.PostAsync(apiPath, request);
             var stream = await response.Content.ReadAsStreamAsync();
 
             if (response.IsSuccessStatusCode)
@@ -75,7 +76,7 @@ namespace MadWolfTwitchBot.Services
             apiPath += $"?client={client}";
             apiPath += $"&url={url}";
 
-            var response = await _client.GetAsync(apiPath);
+            var response = await m_client.GetAsync(apiPath);
 
             var stream = await response.Content.ReadAsStreamAsync();
             var content = await StreamSerializer.StreamToStringAsync(stream);
@@ -104,7 +105,7 @@ namespace MadWolfTwitchBot.Services
             var request = new StringContent(json);
             request.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-            var response = await _client.PostAsync(apiPath, request);
+            var response = await m_client.PostAsync(apiPath, request);
             var stream = await response.Content.ReadAsStreamAsync();
 
             if (response.IsSuccessStatusCode)
@@ -119,9 +120,10 @@ namespace MadWolfTwitchBot.Services
 
         public static async Task<Models.Channel> GetChannelDetails(string client, string token, string channel)
         {
-            string apiPath = GenerateApiPath($"account/{channel}", client, token);
+            SetupAuthenticationHeaders(client, token);
+            string apiPath = $"account/{channel}";
 
-            var response = await _client.GetAsync(apiPath);
+            var response = await m_client.GetAsync(apiPath);
             var stream = await response.Content.ReadAsStreamAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -131,7 +133,7 @@ namespace MadWolfTwitchBot.Services
             }
 
             var users = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Account>>(stream);
-            var selected = users.FirstOrDefault(u => u.Login.Equals(channel));
+            var selected = users.FirstOrDefault(u => u.Login.Equals(channel.ToLower()));
 
             if (selected == null)
                 return null;
@@ -151,9 +153,10 @@ namespace MadWolfTwitchBot.Services
         {
             var resource = new ShoutOut();
 
-            string apiPath = GenerateApiPath($"account/{user}", client, token);
+            SetupAuthenticationHeaders(client, token);
+            string apiPath = $"account/{user}";
 
-            var response = await _client.GetAsync(apiPath);
+            var response = await m_client.GetAsync(apiPath);
             var stream = await response.Content.ReadAsStreamAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -163,14 +166,14 @@ namespace MadWolfTwitchBot.Services
             }
 
             var users = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Account>>(stream);
-            var userData = users.FirstOrDefault(u => u.Login.Equals(user));
+            var userData = users.FirstOrDefault(u => u.Login.Equals(user.ToLower()));
 
             resource.Name = userData.Display_Name;
             resource.Link = new Uri($"https://www.twitch.tv/{userData.Login}");
 
-            apiPath = GenerateApiPath($"channel/{userData.Login}", client, token);
+            apiPath = $"channel/{userData.Login}";
 
-            response = await _client.GetAsync(apiPath);
+            response = await m_client.GetAsync(apiPath);
             stream = await response.Content.ReadAsStreamAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -185,9 +188,9 @@ namespace MadWolfTwitchBot.Services
             resource.IsLive = channelData.Is_Live;
             resource.StreamDateTime = string.IsNullOrEmpty(channelData.Started_At) ? null : DateTime.Parse(channelData.Started_At);
 
-            apiPath = GenerateApiPath($"game/{channelData.Game_Id}", client, token);
+            apiPath = $"game/{channelData.Game_Id}";
 
-            response = await _client.GetAsync(apiPath);
+            response = await m_client.GetAsync(apiPath);
             stream = await response.Content.ReadAsStreamAsync();
 
             if (response.IsSuccessStatusCode)
@@ -203,13 +206,46 @@ namespace MadWolfTwitchBot.Services
             return resource;
         }
 
-        private static string GenerateApiPath(string path, string client, string token)
+        public static async Task AnnouncePromoMessage(string client, string token, string user, string message)
         {
-            var apiPath = path;
-            apiPath += $"?client={client}";
-            apiPath += $"&token={token}";
+            SetupAuthenticationHeaders(client, token);
+            string apiPath = $"account/{user}";
 
-            return apiPath;
+            var response = await m_client.GetAsync(apiPath);
+            var stream = await response.Content.ReadAsStreamAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var content = await StreamSerializer.StreamToStringAsync(stream);
+                throw new Exception(content);
+            }
+
+            var users = StreamSerializer.DeserialiseJsonFromStream<IEnumerable<Account>>(stream);
+            var userData = users.FirstOrDefault(u => u.Login.Equals(user.ToLower()));
+
+            apiPath = "chat/announce";
+
+            var data = new
+            {
+                UserId = long.Parse(userData.Id),
+                Message = message
+            };
+
+            var json = JsonConvert.SerializeObject(data);
+
+            var request = new StringContent(json);
+            request.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+
+            response = await m_client.PostAsync(apiPath, request);
+            response.EnsureSuccessStatusCode();
+        }
+
+        private static void SetupAuthenticationHeaders(string clientId, string accessToken)
+        {
+            m_client.DefaultRequestHeaders.Clear();
+
+            m_client.DefaultRequestHeaders.Add("client-id", clientId);
+            m_client.DefaultRequestHeaders.Add("auth-token", accessToken);
         }
     }
 }
